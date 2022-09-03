@@ -1,0 +1,16 @@
+{
+  "name": "peertocpnext",
+  "version": "1.0.0",
+  "description": "Desktop App peer to peer code editor with WebRTC",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Hocky Yudhiono",
+  "license": "ISC",
+  "devDependencies": {
+    "@electron-forge/cli": "^6.0.0-beta.65",
+    "electron": "^20.1.1"
+  }
+}
