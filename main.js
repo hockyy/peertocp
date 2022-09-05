@@ -1,7 +1,7 @@
 const {app, BrowserWindow, ipcMain} = require('electron');
 const path = require('path');
 
-const pty = require("node-pty-prebuilt-multiarch");
+const pty = require("node-pty");
 const os = require("os");
 const shell = os.platform() === "win32" ? "powershell.exe" : "bash";
 

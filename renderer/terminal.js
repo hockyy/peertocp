@@ -5,7 +5,7 @@ const {ipcRenderer} = require("electron")
 const term = new Terminal();
 term.open(document.getElementById('terminal'));
 
-ipc.on("terminal.incomingData", (event, data) => {
+ipcRenderer.on("terminal.incomingData", (event, data) => {
     console.log("OK")
     term.write(data);
 });
