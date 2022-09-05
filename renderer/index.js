@@ -1,6 +1,7 @@
 'use strict'
 
-const {ipcRenderer} = require('electron')
+const {ipcRenderer} = require('electron');
+
 const yjs = require("yjs");
 const {WebrtcProvider} = require("y-webrtc");
 const child = require('child_process');
@@ -129,16 +130,17 @@ connectionButton.addEventListener('click', () => {
 })
 
 spawnButton.addEventListener("click", () => {
-  const python = child.exec('python3', ['script1.py'])
+  const python = child.exec('ls -altr')
   let dataToSend;
+  ipcRenderer.send('add-terminal-window')
+
   python.stdout.on('data', function (data) {
     console.log('Pipe data from python script ...');
     dataToSend = data.toString();
+    console.log(dataToSend)
   });
   // in close event we are sure that stream from child process is closed
   python.on('close', (code) => {
     console.log(`child process close all stdio with code ${code}`);
-    // send data to browser
-    res.send(dataToSend)
   });
 })
