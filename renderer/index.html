@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en-EN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+    <title>Hello World!</title>
+    <link rel="stylesheet" href="../assets/css/index.css">
+    <link rel="stylesheet" href="../contents/bootstrap.min.css"
+          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+</head>
+<body>
+<h1>Hello World!</h1>
+We are using Node.js <span id="node-version"></span>,
+Chromium <span id="chrome-version"></span>,
+and Electron <span id="electron-version"></span>.
+<div id="info-box">
+    <div style="display: flex; flex-direction: column; align-items: start">
+        <div class="input-box">
+            <label for="room-name-input">
+                Room Name
+            </label>
+            <input id="room-name-input"/>
+        </div>
+        <div class="input-box">
+            <label for="username-input">
+                Username
+            </label>
+            <input id="username-input"/>
+        </div>
+    </div>
+    <button type="button" class="btn btn-danger m-2" id="connect-button">Disconnect</button>
+
+    <button type="button" class="btn btn-primary m-2" id="spawn-button">Spawn</button>
+    <div>
+        <div id="connection">
+                🔗 Connection: <b id="connection-status" style="color: #32a852">Online</b>
+        </div>
+        <div id="room">
+            🏠️ Room: <b id="room-status"></b>
+        </div>
+        <div id="online-peers">
+            🧑‍🤝‍🧑 Online clients:
+            <div class="ml-3" id="peers-status" style="font-weight: bolder"></div>
+        </div>
+    </div>
+</div>
+
+<div id="editor"></div>
+<script src="./index.js"></script>
+</body>
+</html>

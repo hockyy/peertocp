@@ -9,7 +9,7 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js')
     }
   })
-  window.loadFile('index.html')
+  window.loadFile(path.join('renderer', 'index.html'))
 }
 
 app.whenReady().then(() => {
