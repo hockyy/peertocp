@@ -1,5 +1,6 @@
-/* eslint-env browser */
+'use strict'
 
+const {ipcRenderer} = require('electron')
 const yjs = require("yjs");
 const {WebrtcProvider} = require("y-webrtc");
 const child = require('child_process');
@@ -11,7 +12,7 @@ const {EditorState} = require("@codemirror/state");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 
-const SIGNALLING_SERVER_URL = 'ws://localhost:4444';
+const SIGNALLING_SERVER_URL = 'ws://103.167.137.77:4444';
 const DEFAULT_ROOM = 'welcome-room'
 const DEFAULT_USERNAME = 'Anonymous ' + Math.floor(Math.random() * 100)
 const roomStatus = document.getElementById("room-status")
@@ -32,8 +33,6 @@ const randomColor = () => {
   const light = color + "33";
   return {color, light}
 }
-
-const STATUS_COLORS = ["#a83232", "#32a852"]
 
 const userColor = randomColor();
 
@@ -108,7 +107,8 @@ connectionButton.addEventListener('click', () => {
     connectionButton.textContent = 'Connect'
     connectionButton.classList.replace("btn-danger", "btn-success")
     connectionStatus.textContent = "Offline"
-    connectionStatus.style.color = STATUS_COLORS[0]
+    connectionStatus.classList.remove('online')
+    connectionStatus.classList.add('offline')
     peersStatus.innerHTML = ""
   } else {
     const enterState = getEnterState()
@@ -121,7 +121,8 @@ connectionButton.addEventListener('click', () => {
       provider.connect()
     }
     connectionStatus.textContent = "Online"
-    connectionStatus.style.color = STATUS_COLORS[1]
+    connectionStatus.classList.remove('offline')
+    connectionStatus.classList.add('online')
     connectionButton.textContent = 'Disconnect'
     connectionButton.classList.replace("btn-success", "btn-danger")
   }

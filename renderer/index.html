@@ -2,7 +2,6 @@
 <html lang="en-EN">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
   <title>Hello World!</title>
   <link rel="stylesheet" href="../assets/css/index.css">
   <link rel="stylesheet" href="../contents/bootstrap.min.css"
@@ -35,7 +34,7 @@ and Electron <span id="electron-version"></span>.
   <button type="button" class="btn btn-primary m-2" id="spawn-button">Spawn</button>
   <div>
     <div id="connection">
-      🔗 Connection: <b id="connection-status">Online</b>
+      🔗 Connection: <b id="connection-status" class="online">Online</b>
     </div>
     <div id="room">
       🏠️ Room: <b id="room-status"></b>

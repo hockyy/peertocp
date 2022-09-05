@@ -2,6 +2,14 @@ body {
   font-family: sans-serif;
 }
 
+.online {
+  color: #32a852;
+}
+
+.offline {
+  color: #a83232;
+}
+
 .input-box {
   display: flex;
   flex-direction: column;
@@ -52,4 +60,8 @@ body {
 
 #info-box {
   margin: 5px;
+}
+
+#peers-status{
+  font-weight: bolder;
 }
