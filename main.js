@@ -22,8 +22,10 @@ const createWindow = () => {
   mainWindow.loadFile(path.join('renderer', 'index.html'))
 }
 
+let terminalWin;
+
 const runFile = (compileResultfile) => {
-  const terminalWin = new BrowserWindow({
+  terminalWin = new BrowserWindow({
     width: 800, height: 400, webPreferences: {
       nodeIntegration: true, contextIsolation: false,
     }
@@ -41,7 +43,7 @@ const runFile = (compileResultfile) => {
     terminalWin.webContents.send("terminal.incomingData", data);
   });
   ptyProcess.onExit(data => {
-    if(!terminalWin.isDestroyed()) {
+    if (!terminalWin.isDestroyed()) {
       terminalWin.webContents.send("terminal.incomingData",
           "\r\n")
       terminalWin.webContents.send("terminal.incomingData",
@@ -49,13 +51,14 @@ const runFile = (compileResultfile) => {
       terminalWin.webContents.send("terminal.incomingData",
           `[Peer2CP: Signal ${data.signal}]\r\n`)
       terminalWin.webContents.send("terminal.incomingData",
-          `[Peer2CP: Finished Running in ${((new Date()) - startTime)/1000}s]\r\n`)
+          `[Peer2CP: Finished Running in ${((new Date()) - startTime)
+          / 1000}s]\r\n`)
     }
   })
   ipcMain.on("terminal.keystroke", (event, key) => {
     ptyProcess.write(key);
   });
-  terminalWin.on("closed", (event) =>{
+  terminalWin.on("closed", (event) => {
     ptyProcess.kill()
   })
 }
@@ -69,6 +72,11 @@ app.whenReady().then(() => {
     }
   })
   ipcMain.on('add-terminal-window', (event, code) => {
+    if (terminalWin != null && !terminalWin.isDestroyed()) {
+      mainWindow.webContents.send("index.replaceCompileResult",
+          "Close the current terminal to spawn another...\n")
+      return;
+    }
     const p2cpdir = path.join(process.env.HOME, 'p2cp')
     const codefile = path.join(p2cpdir, 'code.cpp')
     const compileResultfile = path.join(p2cpdir, 'code')
@@ -85,7 +93,8 @@ app.whenReady().then(() => {
       }
     })
     mainWindow.webContents.send("index.replaceCompileResult", "Compiling...\n")
-    const compileProcess = pty.spawn("g++", [codefile, "-o", compileResultfile], {})
+    const compileProcess = pty.spawn("g++", [codefile, "-o", compileResultfile],
+        {})
     compileProcess.onData(data => {
       mainWindow.webContents.send("index.compileResult", data)
     })
