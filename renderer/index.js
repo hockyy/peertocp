@@ -12,6 +12,8 @@ const {EditorState} = require("@codemirror/state");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
+const {parse, stringify, toJSON, fromJSON} = require('flatted');
+
 
 const SIGNALLING_SERVER_URL = 'ws://103.167.137.77:4444';
 const DEFAULT_ROOM = 'welcome-room'
@@ -90,6 +92,7 @@ const enterRoom = ({roomName, username}) => {
   provider.awareness.on("change", (status) => {
     peersStatus.innerHTML = (getPeersString(
         provider.awareness.getStates())).innerHTML
+    console.log(provider.room)
   })
   const state = EditorState.create({
     doc: ytext.toString(),

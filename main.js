@@ -22,8 +22,6 @@ const createWindow = () => {
   mainWindow.loadFile(path.join('renderer', 'index.html'))
 }
 
-let ptyProcess;
-
 const runFile = (compileResultfile) => {
   const terminalWin = new BrowserWindow({
     width: 800, height: 400, webPreferences: {
@@ -32,7 +30,7 @@ const runFile = (compileResultfile) => {
   })
   terminalWin.loadFile(path.join('renderer', 'terminal.html'))
   const startTime = new Date()
-  ptyProcess = pty.spawn(compileResultfile, [], {
+  const ptyProcess = pty.spawn(compileResultfile, [], {
     name: "xterm-color",
     cols: 80,
     rows: 30,
@@ -43,18 +41,23 @@ const runFile = (compileResultfile) => {
     terminalWin.webContents.send("terminal.incomingData", data);
   });
   ptyProcess.onExit(data => {
-    terminalWin.webContents.send("terminal.incomingData",
-        "\r\n")
-    terminalWin.webContents.send("terminal.incomingData",
-        `[Peer2CP: Exited with code ${data.exitCode}]\r\n`)
-    terminalWin.webContents.send("terminal.incomingData",
-        `[Peer2CP: Signal ${data.signal}]\r\n`)
-    terminalWin.webContents.send("terminal.incomingData",
-        `[Peer2CP: Finished Running in ${((new Date()) - startTime)/1000}s]\r\n`)
+    if(!terminalWin.isDestroyed()) {
+      terminalWin.webContents.send("terminal.incomingData",
+          "\r\n")
+      terminalWin.webContents.send("terminal.incomingData",
+          `[Peer2CP: Exited with code ${data.exitCode}]\r\n`)
+      terminalWin.webContents.send("terminal.incomingData",
+          `[Peer2CP: Signal ${data.signal}]\r\n`)
+      terminalWin.webContents.send("terminal.incomingData",
+          `[Peer2CP: Finished Running in ${((new Date()) - startTime)/1000}s]\r\n`)
+    }
   })
   ipcMain.on("terminal.keystroke", (event, key) => {
     ptyProcess.write(key);
   });
+  terminalWin.on("closed", (event) =>{
+    ptyProcess.kill()
+  })
 }
 
 app.whenReady().then(() => {
@@ -82,11 +85,11 @@ app.whenReady().then(() => {
       }
     })
     mainWindow.webContents.send("index.replaceCompileResult", "Compiling...\n")
-    ptyProcess = pty.spawn("g++", [codefile, "-o", compileResultfile], {})
-    ptyProcess.onData(data => {
+    const compileProcess = pty.spawn("g++", [codefile, "-o", compileResultfile], {})
+    compileProcess.onData(data => {
       mainWindow.webContents.send("index.compileResult", data)
     })
-    ptyProcess.onExit(data => {
+    compileProcess.onExit(data => {
       mainWindow.webContents.send("index.compileResult",
           `Exited with code ${data.exitCode}`)
       if (data.exitCode === 0) {
