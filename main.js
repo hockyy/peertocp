@@ -32,7 +32,7 @@ const runFile = (compileResultfile) => {
   })
   terminalWin.loadFile(path.join('renderer', 'terminal.html'))
   const startTime = new Date()
-  ptyProcess = pty.spawn(shell, [], {
+  ptyProcess = pty.spawn(compileResultfile, [], {
     name: "xterm-color",
     cols: 80,
     rows: 30,
