@@ -12,9 +12,10 @@ const {EditorState} = require("@codemirror/state");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
+const {WebsocketProvider} = require("y-websocket");
 
 const SIGNALLING_SERVER_URL = 'ws://103.167.137.77:4444';
-const WEBSOCKET_SERVER_URL = 'ws://103.167.137.77:1234';
+const WEBSOCKET_SERVER_URL = 'ws://103.167.137.77:4443';
 const DEFAULT_ROOM = 'welcome-room'
 const DEFAULT_USERNAME = 'Anonymous ' + Math.floor(Math.random() * 100)
 const roomStatus = document.getElementById("room-status")
@@ -28,8 +29,7 @@ const compileFlagInput = document.getElementById("compile-flag")
 const compileResult = document.getElementById("compile-result")
 
 ipcRenderer.on("index.compileResult", (event, data) => {
-  let tmpHtml = termToHtml.strings(data,
-      termToHtml.themes.light.name)
+  let tmpHtml = termToHtml.strings(data, termToHtml.themes.light.name)
   tmpHtml = /<pre[^>]*>((.|[\n\r])*)<\/pre>/im.exec(tmpHtml)[1];
   compileResult.innerHTML += tmpHtml
 })
@@ -70,9 +70,22 @@ const getPeersString = (peers) => {
     const cur = document.createElement("li");
     cur.innerHTML = (`${key} - ${val.user.name}\n`)
     cur.style.color = `${val.user.color}`
+    const spawnOtherPeerButton = document.createElement("button")
+    spawnOtherPeerButton.classList = "btn btn-warning btn-sm"
+    spawnOtherPeerButton.id = `spawn-${key}`
+    spawnOtherPeerButton.textContent = "Request Run"
+    cur.append(spawnOtherPeerButton)
     ret.appendChild(cur)
   })
   return ret;
+}
+
+const updatePeersButton = (peers) => {
+  peers.forEach((val, key) => {
+    const el = document.getElementById(`spawn-${key}`)
+    el.addEventListener("click", () => {
+    })
+  })
 }
 
 const enterRoom = ({roomName, username}) => {
@@ -89,9 +102,10 @@ const enterRoom = ({roomName, username}) => {
   })
   ytext = ydoc.getText('codemirror')
   provider.awareness.on("change", (status) => {
-    peersStatus.innerHTML = (getPeersString(
-        provider.awareness.getStates())).innerHTML
-    console.log(provider.room)
+    let states = provider.awareness.getStates()
+    peersStatus.innerHTML = (getPeersString(states)).innerHTML
+    updatePeersButton(states)
+    // console.log(provider.room)
   })
   const state = EditorState.create({
     doc: ytext.toString(),
