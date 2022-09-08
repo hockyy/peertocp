@@ -11,6 +11,7 @@ const {keymap} = require("@codemirror/view");
 const {EditorState} = require("@codemirror/state");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
+const termToHtml = require('term-to-html')
 
 const SIGNALLING_SERVER_URL = 'ws://103.167.137.77:4444';
 const DEFAULT_ROOM = 'welcome-room'
@@ -26,8 +27,14 @@ const compileFlagInput = document.getElementById("compile-flag")
 const compileResult = document.getElementById("compile-result")
 
 ipcRenderer.on("index.compileResult", (event, data) => {
-  console.log(data)
-  compileResult.textContent = data
+  let tmpHtml = termToHtml.strings(data,
+      termToHtml.themes.light.name)
+  tmpHtml = /<pre[^>]*>((.|[\n\r])*)<\/pre>/im.exec(tmpHtml)[1];
+  compileResult.innerHTML += tmpHtml
+})
+
+ipcRenderer.on("index.replaceCompileResult", (event, data) => {
+  compileResult.innerHTML = data
 })
 
 let codeMirrorView;
@@ -72,18 +79,12 @@ const enterRoom = ({roomName, username}) => {
   roomStatus.textContent = roomName
   console.log("Entering room " + roomName)
   const ydoc = new yjs.Doc()
-  provider = new WebrtcProvider(
-      roomName,
-      ydoc,
-      {
-        // awareness: new Awareness(),
-        signaling: [SIGNALLING_SERVER_URL]
-      }
-  )
+  provider = new WebrtcProvider(roomName, ydoc, {
+    // awareness: new Awareness(),
+    signaling: [SIGNALLING_SERVER_URL]
+  })
   provider.awareness.setLocalStateField('user', {
-    name: username,
-    color: userColor.color,
-    colorLight: userColor.light
+    name: username, color: userColor.color, colorLight: userColor.light
   })
   ytext = ydoc.getText('codemirror')
   provider.awareness.on("change", (status) => {
@@ -92,14 +93,8 @@ const enterRoom = ({roomName, username}) => {
   })
   const state = EditorState.create({
     doc: ytext.toString(),
-    extensions: [
-      keymap.of([
-        ...yUndoManagerKeymap,
-        indentWithTab
-      ]),
-      basicSetup,
-      cpp(),
-      yCollab(ytext, provider.awareness)
+    extensions: [keymap.of([...yUndoManagerKeymap, indentWithTab]), basicSetup,
+      cpp(), yCollab(ytext, provider.awareness)
       // oneDark
     ]
   })

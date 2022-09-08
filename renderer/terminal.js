@@ -47,7 +47,10 @@ const LIGHT_MODE = {
 }
 
 const term = new Terminal({
-  'theme': DARK_MODE
+  theme: DARK_MODE,
+  rows: 30,
+  cols: 80,
+  cursorStyle: "bar",
 });
 
 term.open(document.getElementById('terminal'));

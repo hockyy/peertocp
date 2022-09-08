@@ -30,6 +30,11 @@ body {
   box-sizing: border-box;
 }
 
+.compile-result {
+  margin: 3px;
+  padding: 3px;
+}
+
 .remote-caret > div {
   position: absolute;
   top: -1.05em;

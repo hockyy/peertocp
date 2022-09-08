@@ -24,6 +24,39 @@ const createWindow = () => {
 
 let ptyProcess;
 
+const runFile = (compileResultfile) => {
+  const terminalWin = new BrowserWindow({
+    width: 800, height: 400, webPreferences: {
+      nodeIntegration: true, contextIsolation: false,
+    }
+  })
+  terminalWin.loadFile(path.join('renderer', 'terminal.html'))
+  const startTime = new Date()
+  ptyProcess = pty.spawn(shell, [], {
+    name: "xterm-color",
+    cols: 80,
+    rows: 30,
+    cwd: path.join(process.env.HOME, 'p2cp'),
+    env: process.env
+  });
+  ptyProcess.onData(data => {
+    terminalWin.webContents.send("terminal.incomingData", data);
+  });
+  ptyProcess.onExit(data => {
+    terminalWin.webContents.send("terminal.incomingData",
+        "\r\n")
+    terminalWin.webContents.send("terminal.incomingData",
+        `[Peer2CP: Exited with code ${data.exitCode}]\r\n`)
+    terminalWin.webContents.send("terminal.incomingData",
+        `[Peer2CP: Signal ${data.signal}]\r\n`)
+    terminalWin.webContents.send("terminal.incomingData",
+        `[Peer2CP: Finished Running in ${((new Date()) - startTime)/1000}s]\r\n`)
+  })
+  ipcMain.on("terminal.keystroke", (event, key) => {
+    ptyProcess.write(key);
+  });
+}
+
 app.whenReady().then(() => {
   createWindow()
 
@@ -35,6 +68,7 @@ app.whenReady().then(() => {
   ipcMain.on('add-terminal-window', (event, code) => {
     const p2cpdir = path.join(process.env.HOME, 'p2cp')
     const codefile = path.join(p2cpdir, 'code.cpp')
+    const compileResultfile = path.join(p2cpdir, 'code')
     if (!fs.existsSync(p2cpdir)) {
       fs.mkdir(p2cpdir, (err) => {
         if (err) {
@@ -47,29 +81,19 @@ app.whenReady().then(() => {
         console.log(err)
       }
     })
-    ptyProcess = pty.spawn("g++", [codefile], {})
+    mainWindow.webContents.send("index.replaceCompileResult", "Compiling...\n")
+    ptyProcess = pty.spawn("g++", [codefile, "-o", compileResultfile], {})
     ptyProcess.onData(data => {
       mainWindow.webContents.send("index.compileResult", data)
     })
-    // const terminalWin = new BrowserWindow({
-    //   width: 800, height: 400, webPreferences: {
-    //     nodeIntegration: true, contextIsolation: false,
-    //   }
-    // })
-    // terminalWin.loadFile(path.join('renderer', 'terminal.html'))
-    // ptyProcess = pty.spawn(shell, [], {
-    //   name: "xterm-color",
-    //   cols: 80,
-    //   rows: 30,
-    //   cwd: path.join(process.env.HOME, 'p2cp'),
-    //   env: process.env
-    // });
-    // ptyProcess.onData(data => {
-    //   terminalWin.webContents.send("terminal.incomingData", data);
-    // });
-    // ipcMain.on("terminal.keystroke", (event, key) => {
-    //   ptyProcess.write(key);
-    // });
+    ptyProcess.onExit(data => {
+      mainWindow.webContents.send("index.compileResult",
+          `Exited with code ${data.exitCode}`)
+      if (data.exitCode === 0) {
+        runFile(compileResultfile)
+      }
+    })
+
   })
 
 })
