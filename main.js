@@ -1,21 +1,25 @@
 const {app, BrowserWindow, ipcMain} = require('electron');
 const path = require('path');
+const fs = require('fs')
+const child_process = require('child_process');
 
 const pty = require("node-pty");
 const os = require("os");
-const shell = os.platform() === "win32" ? "powershell.exe" : "bash";
+const SHELL_PREFERENCE = {
+  "win32": "cmd.exe", "linux": "bash", "darwin": "zsh"
+}
+let mainWindow;
+const shell = SHELL_PREFERENCE[os.platform()] || "bash"
 
 const createWindow = () => {
-  const window = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
+  mainWindow = new BrowserWindow({
+    width: 800, height: 600, webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: true,
       contextIsolation: false,
     }
   })
-  window.loadFile(path.join('renderer', 'index.html'))
+  mainWindow.loadFile(path.join('renderer', 'index.html'))
 }
 
 let ptyProcess;
@@ -28,32 +32,44 @@ app.whenReady().then(() => {
       createWindow()
     }
   })
-
-  ipcMain.on('add-terminal-window', () => {
-    console.log('ok')
-    const terminalWin = new BrowserWindow({
-      width: 800,
-      height: 400,
-      webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false,
+  ipcMain.on('add-terminal-window', (event, code) => {
+    const p2cpdir = path.join(process.env.HOME, 'p2cp')
+    const codefile = path.join(p2cpdir, 'code.cpp')
+    if (!fs.existsSync(p2cpdir)) {
+      fs.mkdir(p2cpdir, (err) => {
+        if (err) {
+          console.log(err)
+        }
+      });
+    }
+    fs.writeFile(codefile, code, err => {
+      if (err) {
+        console.log(err)
       }
     })
-    terminalWin.loadFile(path.join('renderer', 'terminal.html'))
-    ptyProcess = pty.spawn(shell, [], {
-      name: "xterm-color",
-      cols: 80,
-      rows: 30,
-      cwd: process.env.HOME,
-      env: process.env
-    });
-    ptyProcess.onData(function (data) {
-      terminalWin.webContents.send("terminal.incomingData", data);
-      console.log("Data sent");
-    });
-    ipcMain.on("terminal.keystroke", (event, key) => {
-      ptyProcess.write(key);
-    });
+    ptyProcess = pty.spawn("g++", [codefile], {})
+    ptyProcess.onData(data => {
+      mainWindow.webContents.send("index.compileResult", data)
+    })
+    // const terminalWin = new BrowserWindow({
+    //   width: 800, height: 400, webPreferences: {
+    //     nodeIntegration: true, contextIsolation: false,
+    //   }
+    // })
+    // terminalWin.loadFile(path.join('renderer', 'terminal.html'))
+    // ptyProcess = pty.spawn(shell, [], {
+    //   name: "xterm-color",
+    //   cols: 80,
+    //   rows: 30,
+    //   cwd: path.join(process.env.HOME, 'p2cp'),
+    //   env: process.env
+    // });
+    // ptyProcess.onData(data => {
+    //   terminalWin.webContents.send("terminal.incomingData", data);
+    // });
+    // ipcMain.on("terminal.keystroke", (event, key) => {
+    //   ptyProcess.write(key);
+    // });
   })
 
 })

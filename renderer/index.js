@@ -4,7 +4,6 @@ const {ipcRenderer} = require('electron');
 
 const yjs = require("yjs");
 const {WebrtcProvider} = require("y-webrtc");
-const child = require('child_process');
 const {yCollab, yUndoManagerKeymap} = require('y-codemirror.next');
 
 const {basicSetup, EditorView} = require("codemirror");
@@ -23,10 +22,18 @@ const connectionButton = document.getElementById("connect-button")
 const roomNameInput = document.getElementById("room-name-input")
 const usernameInput = document.getElementById("username-input")
 const spawnButton = document.getElementById("spawn-button")
+const compileFlagInput = document.getElementById("compile-flag")
+const compileResult = document.getElementById("compile-result")
+
+ipcRenderer.on("index.compileResult", (event, data) => {
+  console.log(data)
+  compileResult.textContent = data
+})
 
 let codeMirrorView;
 let provider;
-let currentState = {}
+let ytext;
+let currentState = {};
 
 const randomColor = () => {
   const randomColor = Math.floor(Math.random() * 16777215).toString(16);
@@ -35,6 +42,7 @@ const randomColor = () => {
   return {color, light}
 }
 
+compileFlagInput.value = "--std=c++17"
 const userColor = randomColor();
 
 const getEnterState = () => {
@@ -77,7 +85,7 @@ const enterRoom = ({roomName, username}) => {
     color: userColor.color,
     colorLight: userColor.light
   })
-  const ytext = ydoc.getText('codemirror')
+  ytext = ydoc.getText('codemirror')
   provider.awareness.on("change", (status) => {
     peersStatus.innerHTML = (getPeersString(
         provider.awareness.getStates())).innerHTML
@@ -113,7 +121,6 @@ connectionButton.addEventListener('click', () => {
     peersStatus.innerHTML = ""
   } else {
     const enterState = getEnterState()
-    console.log(enterState)
     if (enterState !== currentState) {
       provider.destroy()
       codeMirrorView.destroy()
@@ -130,17 +137,7 @@ connectionButton.addEventListener('click', () => {
 })
 
 spawnButton.addEventListener("click", () => {
-  const python = child.exec('ls -altr')
-  let dataToSend;
-  ipcRenderer.send('add-terminal-window')
-
-  python.stdout.on('data', function (data) {
-    console.log('Pipe data from python script ...');
-    dataToSend = data.toString();
-    console.log(dataToSend)
-  });
-  // in close event we are sure that stream from child process is closed
-  python.on('close', (code) => {
-    console.log(`child process close all stdio with code ${code}`);
-  });
+  let dataToSend = ytext.toString()
+  ipcRenderer.send('add-terminal-window', dataToSend)
 })
+
