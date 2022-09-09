@@ -95,7 +95,8 @@ const enterRoom = ({roomName, username}) => {
   const ydoc = new yjs.Doc()
   provider = new WebrtcProvider(roomName, ydoc, {
     // awareness: new Awareness(),
-    signaling: [SIGNALLING_SERVER_URL]
+    signaling: [SIGNALLING_SERVER_URL],
+    filterBcConns: false
   })
   provider.awareness.setLocalStateField('user', {
     name: username, color: userColor.color, colorLight: userColor.light
@@ -105,7 +106,7 @@ const enterRoom = ({roomName, username}) => {
     let states = provider.awareness.getStates()
     peersStatus.innerHTML = (getPeersString(states)).innerHTML
     updatePeersButton(states)
-    // console.log(provider.room)
+    console.log(provider.room)
   })
   const state = EditorState.create({
     doc: ytext.toString(),
