@@ -1,15 +1,13 @@
 const {app, BrowserWindow, ipcMain} = require('electron');
 const path = require('path');
 const fs = require('fs')
-const child_process = require('child_process');
-
 const pty = require("node-pty");
 const os = require("os");
 const SHELL_PREFERENCE = {
   "win32": "cmd.exe", "linux": "bash", "darwin": "zsh"
 }
-let mainWindow;
 const shell = SHELL_PREFERENCE[os.platform()] || "bash"
+let mainWindow;
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
