@@ -84,7 +84,7 @@ const updatePeersButton = (peers) => {
   peers.forEach((val, key) => {
     const el = document.getElementById(`spawn-${key}`)
     el.addEventListener("click", () => {
-      provider.room.broadcastCustomMessage()
+      provider.room.broadcastCustomMessage("test")
     })
   })
 }
@@ -108,6 +108,9 @@ const enterRoom = ({roomName, username}) => {
     peersStatus.innerHTML = (getPeersString(states)).innerHTML
     updatePeersButton(states)
     console.log(provider.room)
+  })
+  provider.on("custom-message", (message) => {
+    console.log(message)
   })
   const state = EditorState.create({
     doc: ytext.toString(),
