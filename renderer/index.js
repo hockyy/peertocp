@@ -104,13 +104,17 @@ const enterRoom = ({roomName, username}) => {
   })
   ytext = ydoc.getText('codemirror')
   provider.awareness.on("change", (status) => {
+    console.log(provider)
     let states = provider.awareness.getStates()
     peersStatus.innerHTML = (getPeersString(states)).innerHTML
     updatePeersButton(states)
-    console.log(provider.room)
   })
   provider.on("custom-message", (message) => {
     console.log(message)
+  })
+  provider.on('set-peer-id', (peerId) => {
+    console.log(peerId)
+    provider.awareness.setLocalStateField('peerId', peerId)
   })
   const state = EditorState.create({
     doc: ytext.toString(),
