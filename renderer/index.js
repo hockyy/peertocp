@@ -84,6 +84,7 @@ const updatePeersButton = (peers) => {
   peers.forEach((val, key) => {
     const el = document.getElementById(`spawn-${key}`)
     el.addEventListener("click", () => {
+      provider.room.broadcastCustomMessage()
     })
   })
 }
