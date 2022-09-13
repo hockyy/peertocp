@@ -70,11 +70,13 @@ const getPeersString = (peers) => {
     const cur = document.createElement("li");
     cur.innerHTML = (`${key} - ${val.user.name}\n`)
     cur.style.color = `${val.user.color}`
-    const spawnOtherPeerButton = document.createElement("button")
-    spawnOtherPeerButton.classList = "btn btn-warning btn-sm"
-    spawnOtherPeerButton.id = `spawn-${key}`
-    spawnOtherPeerButton.textContent = "Request Run"
-    cur.append(spawnOtherPeerButton)
+    if (key !== provider.awareness.clientID) {
+      const spawnOtherPeerButton = document.createElement("button")
+      spawnOtherPeerButton.classList = "btn btn-warning btn-sm"
+      spawnOtherPeerButton.id = `spawn-${key}`
+      spawnOtherPeerButton.textContent = "Request Run"
+      cur.append(spawnOtherPeerButton)
+    }
     ret.appendChild(cur)
   })
   return ret;
@@ -82,9 +84,14 @@ const getPeersString = (peers) => {
 
 const updatePeersButton = (peers) => {
   peers.forEach((val, key) => {
+    if (key === provider.awareness.clientID) {
+      return
+    }
     const el = document.getElementById(`spawn-${key}`)
     el.addEventListener("click", () => {
-      provider.room.broadcastCustomMessage("test")
+      console.log("OK")
+      provider.room.sendToUser(key,
+          `kiriman dari ${provider.awareness.clientID}`)
     })
   })
 }
@@ -104,16 +111,15 @@ const enterRoom = ({roomName, username}) => {
   })
   ytext = ydoc.getText('codemirror')
   provider.awareness.on("change", (status) => {
-    console.log(provider)
     let states = provider.awareness.getStates()
     peersStatus.innerHTML = (getPeersString(states)).innerHTML
     updatePeersButton(states)
   })
   provider.on("custom-message", (message) => {
+    console.log("Received Message")
     console.log(message)
   })
   provider.on('set-peer-id', (peerId) => {
-    console.log(peerId)
     provider.awareness.setLocalStateField('peerId', peerId)
   })
   const state = EditorState.create({
