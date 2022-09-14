@@ -34,6 +34,8 @@ let ytext;
 let runShells;
 let runnerShells;
 let currentState = {};
+let subscribedTerminalId;
+let subscribedSize;
 
 const randomColor = () => {
   const randomColor = Math.floor(Math.random() * 16777215).toString(16);
@@ -91,6 +93,24 @@ const updatePeersButton = (peers) => {
   })
 }
 
+const messageHandler = (message) => {
+  message = JSON.parse(message)
+  if (message.type === "request") {
+    let code = ytext.toString()
+    ipcRenderer.send(
+        'request-compile',
+        message.source,
+        code)
+  } else if (message.type === "compile-result") {
+    compileResultHandler(message.message)
+  } else if (message.type === "replace-compile") {
+    replaceCompileHandler(message.message)
+  }
+  // runShells.push([`oke-${provider.awareness.clientID}-${key}`])
+  // console.log("Received Message")
+  // console.log(message)
+}
+
 const enterRoom = ({roomName, username}) => {
   currentState = {roomName: roomName, username: username}
   roomStatus.textContent = roomName
@@ -115,37 +135,14 @@ const enterRoom = ({roomName, username}) => {
 
   // Send a certain message to a target user-client-id
   ipcRenderer.on("send-message", (event, target, message) => {
-    provider.room.sendToUser(target, message)
-  })
-
-  // Set Up UUID after compile, meaning a shell is ready to be used
-  ipcRenderer.on("terminal.uuid", (event, uuid) => {
-    runShells.set(uuid, new yjs.Array())
-    runnerShells.set(uuid, provider.awareness.clientID)
-  })
-
-  ipcRenderer.on('terminal.update', (event, uuid, data) => {
-    const history = runShells.get(uuid);
-    history.push(data)
-  })
-
-  provider.on("custom-message", (message) => {
-    message = JSON.parse(message)
-    if (message.type === "request") {
-      let code = ytext.toString()
-      ipcRenderer.send(
-          'request-compile',
-          message.source,
-          code)
-    } else if (message.type === "compile-result") {
-      compileResultHandler(message.message)
-    } else if (message.type === "replace-compile") {
-      replaceCompileHandler(message.message)
+    if (target === provider.awareness.clientID) {
+      messageHandler(message)
+    } else {
+      provider.room.sendToUser(target, message)
     }
-    // runShells.push([`oke-${provider.awareness.clientID}-${key}`])
-    // console.log("Received Message")
-    // console.log(message)
   })
+
+  provider.on("custom-message", messageHandler)
   provider.on('set-peer-id', (peerId) => {
     provider.awareness.setLocalStateField('peerId', peerId)
   })
@@ -160,22 +157,61 @@ const enterRoom = ({roomName, username}) => {
     state,
     parent: /** @type {HTMLElement} */ (document.querySelector('#editor'))
   })
+  const updateSubscribed = () => {
+    // console.log("updating")
+    // console.log(subscribedTerminalId)
+    // console.log(subscribedSize)
+    const messages = runShells.get(subscribedTerminalId).toArray()
+    // console.log(messages)
+    let accumulated = ""
+    for (let i = subscribedSize; i < messages.length; i++) {
+      accumulated += messages[i]
+    }
+    subscribedSize = messages.length
+    ipcRenderer.send('terminal.send-subscribed', accumulated)
+  }
   runShells.observeDeep((event, transactions) => {
     shellsContainer.innerHTML = ""
     runShells.forEach((val, key) => {
       const ret = document.createElement("button")
       ret.classList = "btn btn-light"
-      // console.log(val)
-      // console.log(key)
       ret.textContent = `${key} running in ${runnerShells.get(key)}`
       shellsContainer.appendChild(ret)
       ret.addEventListener('click', () => {
-        ipcRenderer.send('terminal.add-window', key, val.toArray())
+        // console.log(key)
+        ipcRenderer.send('terminal.add-window', key);
       })
     })
-    console.log(event)
-    console.log(transactions)
+    if (subscribedTerminalId) {
+      updateSubscribed()
+    }
+    // console.log(event)
+    // console.log(transactions)
     // console.log(runShells.toJSON())
+  })
+
+  // Subscribe to here
+  ipcRenderer.on("terminal.subscribe", (event, id) => {
+    // console.log("Subscribing")
+    // console.log(id)
+    subscribedTerminalId = id;
+    subscribedSize = 0;
+    updateSubscribed()
+  })
+  // Unsubscribe
+  ipcRenderer.on("terminal.unsubscribe", (event, id) => {
+    subscribedTerminalId = "";
+    subscribedSize = 0;
+  })
+  // Set Up UUID after compile, meaning a shell is ready to be used
+  ipcRenderer.on("terminal.uuid", (event, uuid) => {
+    runShells.set(uuid, new yjs.Array())
+    runnerShells.set(uuid, provider.awareness.clientID)
+  })
+
+  ipcRenderer.on('terminal.update', (event, uuid, data) => {
+    const history = runShells.get(uuid);
+    history.push(data)
   })
 }
 
@@ -207,8 +243,13 @@ connectionButton.addEventListener('click', () => {
 })
 
 spawnButton.addEventListener("click", () => {
-  let dataToSend = ytext.toString()
-  ipcRenderer.send('add-terminal-window', dataToSend)
+  const code = ytext.toString()
+  ipcRenderer.send(
+      'request-compile',
+      provider.awareness.clientID,
+      code,
+      true
+  )
 })
 
 const compileResultHandler = (data) => {

@@ -36,7 +36,8 @@ const runFile = (compileResultfile, id) => {
     updateTerminalData([``])
     updateTerminalData([`[Peer2CP: Exited with code ${data.exitCode}]\r\n`])
     updateTerminalData([`[Peer2CP: Signal ${data.signal}]\r\n`])
-    updateTerminalData([`[Peer2CP: Finished Running in ${((new Date()) - startTime)
+    updateTerminalData(
+        [`[Peer2CP: Finished Running in ${((new Date()) - startTime)
         / 1000}s]\r\n`])
   })
   ipcMain.on(`terminal.keystroke.${id}`, (event, key) => {
@@ -91,19 +92,28 @@ End Of Compilers Code
 
 let terminalWin;
 
-const openTerminalHandler = (event, id, outputTerminal) => {
-  if(terminalWin && !terminalWin.isDestroyed()) return;
+const openTerminalHandler = (event, id) => {
+  if (terminalWin && !terminalWin.isDestroyed()) {
+    return;
+  }
   terminalWin = new BrowserWindow({
     width: 800, height: 400, webPreferences: {
       nodeIntegration: true, contextIsolation: false,
     }
   })
   terminalWin.loadFile(path.join('renderer', 'terminal.html'))
-  let accumulated = "";
-  for (const output of outputTerminal) {
-    accumulated += output;
-  }
-  terminalWin.webContents.send("terminal.incomingData", accumulated)
+  // Subscribe to id
+  console.log(id)
+  mainWindow.webContents.send("terminal.subscribe", id)
+  terminalWin.on('closed', () => {
+    mainWindow.webContents.send("terminal.unsubscribe", id)
+  })
+}
+
+const receiveSubscribedHandler = (event, accumulated) => {
+  terminalWin.webContents.on('did-finish-load', () => {
+    terminalWin.webContents.send("terminal.incomingData", accumulated)
+  })
 }
 
 const keystrokeHandler = (event, e) => {
@@ -132,6 +142,7 @@ app.whenReady().then(() => {
   ipcMain.on('request-compile', compileHandler)
   ipcMain.on('terminal.add-window', openTerminalHandler)
   ipcMain.on('terminal.keystroke', keystrokeHandler)
+  ipcMain.on('terminal.send-subscribed', receiveSubscribedHandler)
 })
 
 app.on('window-all-closed', () => {
