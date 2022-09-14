@@ -121,7 +121,7 @@ const enterRoom = ({roomName, username}) => {
     runShells.set(uuid, new yjs.Array())
   })
 
-  ipcRenderer.on('terminal.update', (event , uuid, data) => {
+  ipcRenderer.on('terminal.update', (event, uuid, data) => {
     const history = runShells.get(uuid);
     history.push(data)
   })
@@ -159,15 +159,17 @@ const enterRoom = ({roomName, username}) => {
   })
   runShells.observeDeep(event => {
     shellsContainer.innerHTML = ""
-    for (const runShell of runShells) {
+    runShells.forEach((val, key) => {
       const ret = document.createElement("button")
       ret.classList = "btn btn-light"
-      ret.textContent = runShell
+      console.log(val)
+      console.log(key)
+      ret.textContent = key
       shellsContainer.appendChild(ret)
       ret.addEventListener('click', () => {
-        console.log(`ok-${runShell}`)
+        ipcRenderer.send('terminal.add-window', key, val.toArray())
       })
-    }
+    })
     console.log(runShells.toJSON())
   })
 }

@@ -33,15 +33,11 @@ const runFile = (compileResultfile, id) => {
     updateTerminalData([data])
   });
   ptyProcess.onExit(data => {
-    updateTerminalData(["terminal.incomingData\r\n"])
-    updateTerminalData(["terminal.incomingData",
-      `[Peer2CP: Exited with code ${data.exitCode}]\r\n`])
-    updateTerminalData(
-        ["terminal.incomingData", `[Peer2CP: Signal ${data.signal}]\r\n`])
-    updateTerminalData(["terminal.incomingData",
-      `[Peer2CP: Finished Running in ${((new Date()) - startTime)
-      / 1000}s]\r\n`])
-
+    updateTerminalData([``])
+    updateTerminalData([`Peer2CP: Exited with code ${data.exitCode}]\r\n`])
+    updateTerminalData([`Peer2CP: Signal ${data.signal}]\r\n`])
+    updateTerminalData([`Peer2CP: Finished Running in ${((new Date()) - startTime)
+        / 1000}s]\r\n`])
   })
   ipcMain.on(`terminal.keystroke.${id}`, (event, key) => {
     updateTerminalData(["terminal.incomingData", "\r\n"])
@@ -93,6 +89,24 @@ const compileHandler = (event, source, code) => {
 End Of Compilers Code
  */
 
+let terminalWin;
+
+const openTerminalHandler = (event, id, outputTerminal) => {
+  terminalWin = new BrowserWindow({
+    width: 800, height: 400, webPreferences: {
+      nodeIntegration: true, contextIsolation: false,
+    }
+  })
+  terminalWin.loadFile(path.join('renderer', 'terminal.html'))
+  for (const output of outputTerminal) {
+    terminalWin.webContents.send("terminal.incomingData", output)
+  }
+}
+
+const keystrokeHandler = (event, e) => {
+  console.log(e)
+}
+
 const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 800, height: 600, webPreferences: {
@@ -104,8 +118,6 @@ const createWindow = () => {
   mainWindow.loadFile(path.join('renderer', 'index.html'))
 }
 
-let terminalWin;
-
 app.whenReady().then(() => {
   createWindow()
 
@@ -115,7 +127,8 @@ app.whenReady().then(() => {
     }
   })
   ipcMain.on('request-compile', compileHandler)
-
+  ipcMain.on('terminal.add-window', openTerminalHandler)
+  ipcMain.on('terminal.keystroke', keystrokeHandler)
 })
 
 app.on('window-all-closed', () => {
