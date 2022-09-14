@@ -32,7 +32,7 @@
     "term-to-html": "^1.2.0",
     "xterm": "^4.19.0",
     "y-codemirror.next": "^0.3.2",
-    "y-webrtc": "~/y-webrtc",
+    "y-webrtc": "github:hockyy/y-webrtc",
     "y-websocket": "^1.4.5",
     "yjs": "^13.5.41"
   },

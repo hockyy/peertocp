@@ -41,6 +41,7 @@ ipcRenderer.on("index.replaceCompileResult", (event, data) => {
 let codeMirrorView;
 let provider;
 let ytext;
+let runShells;
 let currentState = {};
 
 const randomColor = () => {
@@ -92,6 +93,7 @@ const updatePeersButton = (peers) => {
       console.log("OK")
       provider.room.sendToUser(key,
           `kiriman dari ${provider.awareness.clientID}`)
+      runShells.push(`oke-${provider.awareness.clientID}-${key}`)
     })
   })
 }
@@ -110,6 +112,7 @@ const enterRoom = ({roomName, username}) => {
     name: username, color: userColor.color, colorLight: userColor.light
   })
   ytext = ydoc.getText('codemirror')
+  runShells = ydoc.getArray('shells')
   provider.awareness.on("change", (status) => {
     let states = provider.awareness.getStates()
     peersStatus.innerHTML = (getPeersString(states)).innerHTML
@@ -132,6 +135,9 @@ const enterRoom = ({roomName, username}) => {
   codeMirrorView = new EditorView({
     state,
     parent: /** @type {HTMLElement} */ (document.querySelector('#editor'))
+  })
+  runShells.observe(event=>{
+    console.log(event)
   })
 }
 
