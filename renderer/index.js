@@ -80,7 +80,7 @@ const updatePeersButton = (peers) => {
     }
     const el = document.getElementById(`spawn-${key}`)
     el.addEventListener("click", () => {
-      console.log("OK")
+      // console.log("OK")
       const message = JSON.stringify({
         type: 'request',
         source: provider.awareness.clientID
@@ -140,8 +140,8 @@ const enterRoom = ({roomName, username}) => {
       replaceCompileHandler(message.message)
     }
     // runShells.push([`oke-${provider.awareness.clientID}-${key}`])
-    console.log("Received Message")
-    console.log(message)
+    // console.log("Received Message")
+    // console.log(message)
   })
   provider.on('set-peer-id', (peerId) => {
     provider.awareness.setLocalStateField('peerId', peerId)
@@ -163,7 +163,7 @@ const enterRoom = ({roomName, username}) => {
       const ret = document.createElement("button")
       ret.classList = "btn btn-light"
       console.log(val)
-      console.log(key)
+      // console.log(key)
       ret.textContent = key
       shellsContainer.appendChild(ret)
       ret.addEventListener('click', () => {

@@ -92,6 +92,7 @@ End Of Compilers Code
 let terminalWin;
 
 const openTerminalHandler = (event, id, outputTerminal) => {
+  if(terminalWin && !terminalWin.isDestroyed()) return;
   terminalWin = new BrowserWindow({
     width: 800, height: 400, webPreferences: {
       nodeIntegration: true, contextIsolation: false,
@@ -104,7 +105,7 @@ const openTerminalHandler = (event, id, outputTerminal) => {
 }
 
 const keystrokeHandler = (event, e) => {
-  console.log(e)
+  console.log(JSON.stringify(e))
 }
 
 const createWindow = () => {
