@@ -133,15 +133,6 @@ const enterRoom = ({roomName, username}) => {
     updatePeersButton(states)
   })
 
-  // Send a certain message to a target user-client-id
-  ipcRenderer.on("send-message", (event, target, message) => {
-    if (target === provider.awareness.clientID) {
-      messageHandler(message)
-    } else {
-      provider.room.sendToUser(target, message)
-    }
-  })
-
   provider.on("custom-message", messageHandler)
   provider.on('set-peer-id', (peerId) => {
     provider.awareness.setLocalStateField('peerId', peerId)
@@ -157,19 +148,7 @@ const enterRoom = ({roomName, username}) => {
     state,
     parent: /** @type {HTMLElement} */ (document.querySelector('#editor'))
   })
-  const updateSubscribed = () => {
-    // console.log("updating")
-    // console.log(subscribedTerminalId)
-    // console.log(subscribedSize)
-    const messages = runShells.get(subscribedTerminalId).toArray()
-    // console.log(messages)
-    let accumulated = ""
-    for (let i = subscribedSize; i < messages.length; i++) {
-      accumulated += messages[i]
-    }
-    subscribedSize = messages.length
-    ipcRenderer.send('terminal.send-subscribed', accumulated)
-  }
+
   runShells.observeDeep((event, transactions) => {
     shellsContainer.innerHTML = ""
     runShells.forEach((val, key) => {
@@ -189,30 +168,6 @@ const enterRoom = ({roomName, username}) => {
     // console.log(transactions)
     // console.log(runShells.toJSON())
   })
-
-  // Subscribe to here
-  ipcRenderer.on("terminal.subscribe", (event, id) => {
-    // console.log("Subscribing")
-    // console.log(id)
-    subscribedTerminalId = id;
-    subscribedSize = 0;
-    updateSubscribed()
-  })
-  // Unsubscribe
-  ipcRenderer.on("terminal.unsubscribe", (event, id) => {
-    subscribedTerminalId = "";
-    subscribedSize = 0;
-  })
-  // Set Up UUID after compile, meaning a shell is ready to be used
-  ipcRenderer.on("terminal.uuid", (event, uuid) => {
-    runnerShells.set(uuid, provider.awareness.clientID)
-    runShells.set(uuid, new yjs.Array())
-  })
-
-  ipcRenderer.on('terminal.update', (event, uuid, data) => {
-    const history = runShells.get(uuid);
-    history.push(data)
-  })
 }
 
 connectionButton.addEventListener('click', () => {
@@ -225,6 +180,7 @@ connectionButton.addEventListener('click', () => {
     connectionStatus.classList.remove('online')
     connectionStatus.classList.add('offline')
     peersStatus.innerHTML = ""
+    shellsContainer.innerHTML = ""
   } else {
     const enterState = getEnterState()
     if (enterState !== currentState) {
@@ -261,3 +217,52 @@ const compileResultHandler = (data) => {
 const replaceCompileHandler = (data) => {
   compileResult.innerHTML = data
 }
+
+const updateSubscribed = () => {
+  // console.log("updating")
+  // console.log(subscribedTerminalId)
+  // console.log(subscribedSize)
+  const messages = runShells.get(subscribedTerminalId).toArray()
+  // console.log(messages)
+  let accumulated = ""
+  for (let i = subscribedSize; i < messages.length; i++) {
+    accumulated += messages[i]
+  }
+  subscribedSize = messages.length
+  ipcRenderer.send('terminal.send-subscribed', accumulated)
+}
+
+// Send a certain message to a target user-client-id
+ipcRenderer.on("send-message", (event, target, message) => {
+  if (target === provider.awareness.clientID) {
+    messageHandler(message)
+  } else {
+    provider.room.sendToUser(target, message)
+  }
+})
+
+// Subscribe to here
+ipcRenderer.on("terminal.subscribe", (event, id) => {
+  // console.log("Subscribing")
+  // console.log(id)
+  subscribedTerminalId = id;
+  subscribedSize = 0;
+  updateSubscribed()
+})
+// Unsubscribe
+ipcRenderer.on("terminal.unsubscribe", (event, id) => {
+  subscribedTerminalId = "";
+  subscribedSize = 0;
+})
+
+// Set Up UUID after compile, meaning a shell is ready to be used
+ipcRenderer.on("terminal.uuid", (event, uuid) => {
+  runnerShells.set(uuid, provider.awareness.clientID)
+  runShells.set(uuid, new yjs.Array())
+})
+
+// Updates terminal
+ipcRenderer.on('terminal.update', (event, uuid, data) => {
+  const history = runShells.get(uuid);
+  history.push(data)
+})
