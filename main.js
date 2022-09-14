@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs')
 const pty = require("node-pty");
 const os = require("os");
+const crypto = require('crypto');
 const SHELL_PREFERENCE = {
   "win32": "cmd.exe", "linux": "bash", "darwin": "zsh"
 }
@@ -15,7 +16,7 @@ Start Of Processes and Compilers Code
 
 const processMap = new Map()
 
-const runFile = (compileResultfile, shellArray, id) => {
+const runFile = (compileResultfile, id) => {
   const startTime = new Date()
   const ptyProcess = pty.spawn(compileResultfile, [], {
     name: "xterm-color",
@@ -25,26 +26,28 @@ const runFile = (compileResultfile, shellArray, id) => {
     env: process.env
   });
   processMap.set("id", ptyProcess)
+  const updateTerminalData = (data) => {
+    mainWindow.webContents.send("terminal.update", id, data);
+  }
   ptyProcess.onData(data => {
-    shellArray.push([data])
+    updateTerminalData([data])
   });
   ptyProcess.onExit(data => {
-    if (!terminalWin.isDestroyed()) {
-      shellArray.push(["terminal.incomingData", "\r\n"])
-      shellArray.push(["terminal.incomingData",
-        `[Peer2CP: Exited with code ${data.exitCode}]\r\n`])
-      shellArray.push(
-          ["terminal.incomingData", `[Peer2CP: Signal ${data.signal}]\r\n`])
-      shellArray.push(["terminal.incomingData",
-        `[Peer2CP: Finished Running in ${((new Date()) - startTime)
-        / 1000}s]\r\n`])
-    }
+    updateTerminalData(["terminal.incomingData\r\n"])
+    updateTerminalData(["terminal.incomingData",
+      `[Peer2CP: Exited with code ${data.exitCode}]\r\n`])
+    updateTerminalData(
+        ["terminal.incomingData", `[Peer2CP: Signal ${data.signal}]\r\n`])
+    updateTerminalData(["terminal.incomingData",
+      `[Peer2CP: Finished Running in ${((new Date()) - startTime)
+      / 1000}s]\r\n`])
+
   })
   ipcMain.on(`terminal.keystroke.${id}`, (event, key) => {
-    shellArray.push(["terminal.incomingData", "\r\n"])
+    updateTerminalData(["terminal.incomingData", "\r\n"])
     ptyProcess.write(key);
   });
-  ipcMain.on(`kill.${id}`, () => {
+  ipcMain.on(`terminal.kill.${id}`, () => {
     ptyProcess.kill()
   })
 }
@@ -66,11 +69,9 @@ const compileHandler = (event, source, code) => {
     }
   })
   const sendBack = (message, isReplace = false) => {
-    mainWindow.webContents.send("send-message", source,
-        JSON.stringify({
-          type: isReplace ? "compile-result" : "replace-compile",
-          message: message
-        }))
+    mainWindow.webContents.send("send-message", source, JSON.stringify({
+      type: isReplace ? "replace-compile" : "compile-result", message: message
+    }))
   }
   sendBack("Compiling...\n", true)
   const compileProcess = pty.spawn("g++", [codefile, "-o", compileResultfile],

@@ -121,6 +121,11 @@ const enterRoom = ({roomName, username}) => {
     runShells.set(uuid, new yjs.Array())
   })
 
+  ipcRenderer.on('terminal.update', (event , uuid, data) => {
+    const history = runShells.get(uuid);
+    history.push(data)
+  })
+
   provider.on("custom-message", (message) => {
     message = JSON.parse(message)
     if (message.type === "request") {
@@ -130,9 +135,9 @@ const enterRoom = ({roomName, username}) => {
           message.source,
           code)
     } else if (message.type === "compile-result") {
-      compileResultHandler("", message.message)
+      compileResultHandler(message.message)
     } else if (message.type === "replace-compile") {
-      replaceCompileHandler("", message.message)
+      replaceCompileHandler(message.message)
     }
     // runShells.push([`oke-${provider.awareness.clientID}-${key}`])
     console.log("Received Message")
@@ -152,7 +157,7 @@ const enterRoom = ({roomName, username}) => {
     state,
     parent: /** @type {HTMLElement} */ (document.querySelector('#editor'))
   })
-  runShells.observe(event => {
+  runShells.observeDeep(event => {
     shellsContainer.innerHTML = ""
     for (const runShell of runShells) {
       const ret = document.createElement("button")
@@ -163,8 +168,7 @@ const enterRoom = ({roomName, username}) => {
         console.log(`ok-${runShell}`)
       })
     }
-    console.log(event)
-    console.log(runShells.toArray())
+    console.log(runShells.toJSON())
   })
 }
 
@@ -200,12 +204,12 @@ spawnButton.addEventListener("click", () => {
   ipcRenderer.send('add-terminal-window', dataToSend)
 })
 
-const compileResultHandler = (event, data) => {
+const compileResultHandler = (data) => {
   let tmpHtml = termToHtml.strings(data, termToHtml.themes.light.name)
   tmpHtml = /<pre[^>]*>((.|[\n\r])*)<\/pre>/im.exec(tmpHtml)[1];
   compileResult.innerHTML += tmpHtml
 }
 
-const replaceCompileHandler = (event, data) => {
+const replaceCompileHandler = (data) => {
   compileResult.innerHTML = data
 }
