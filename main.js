@@ -34,9 +34,9 @@ const runFile = (compileResultfile, id) => {
   });
   ptyProcess.onExit(data => {
     updateTerminalData([``])
-    updateTerminalData([`Peer2CP: Exited with code ${data.exitCode}]\r\n`])
-    updateTerminalData([`Peer2CP: Signal ${data.signal}]\r\n`])
-    updateTerminalData([`Peer2CP: Finished Running in ${((new Date()) - startTime)
+    updateTerminalData([`[Peer2CP: Exited with code ${data.exitCode}]\r\n`])
+    updateTerminalData([`[Peer2CP: Signal ${data.signal}]\r\n`])
+    updateTerminalData([`[Peer2CP: Finished Running in ${((new Date()) - startTime)
         / 1000}s]\r\n`])
   })
   ipcMain.on(`terminal.keystroke.${id}`, (event, key) => {
@@ -99,9 +99,11 @@ const openTerminalHandler = (event, id, outputTerminal) => {
     }
   })
   terminalWin.loadFile(path.join('renderer', 'terminal.html'))
+  let accumulated = "";
   for (const output of outputTerminal) {
-    terminalWin.webContents.send("terminal.incomingData", output)
+    accumulated += output;
   }
+  terminalWin.webContents.send("terminal.incomingData", accumulated)
 }
 
 const keystrokeHandler = (event, e) => {

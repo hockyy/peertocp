@@ -32,6 +32,7 @@ let codeMirrorView;
 let provider;
 let ytext;
 let runShells;
+let runnerShells;
 let currentState = {};
 
 const randomColor = () => {
@@ -105,6 +106,7 @@ const enterRoom = ({roomName, username}) => {
   })
   ytext = ydoc.getText('codemirror')
   runShells = ydoc.getMap('shells')
+  runnerShells = ydoc.getMap('shellRunner')
   provider.awareness.on("change", (status) => {
     let states = provider.awareness.getStates()
     peersStatus.innerHTML = (getPeersString(states)).innerHTML
@@ -119,6 +121,7 @@ const enterRoom = ({roomName, username}) => {
   // Set Up UUID after compile, meaning a shell is ready to be used
   ipcRenderer.on("terminal.uuid", (event, uuid) => {
     runShells.set(uuid, new yjs.Array())
+    runnerShells.set(uuid, provider.awareness.clientID)
   })
 
   ipcRenderer.on('terminal.update', (event, uuid, data) => {
@@ -157,20 +160,22 @@ const enterRoom = ({roomName, username}) => {
     state,
     parent: /** @type {HTMLElement} */ (document.querySelector('#editor'))
   })
-  runShells.observeDeep(event => {
+  runShells.observeDeep((event, transactions) => {
     shellsContainer.innerHTML = ""
     runShells.forEach((val, key) => {
       const ret = document.createElement("button")
       ret.classList = "btn btn-light"
-      console.log(val)
+      // console.log(val)
       // console.log(key)
-      ret.textContent = key
+      ret.textContent = `${key} running in ${runnerShells.get(key)}`
       shellsContainer.appendChild(ret)
       ret.addEventListener('click', () => {
         ipcRenderer.send('terminal.add-window', key, val.toArray())
       })
     })
-    console.log(runShells.toJSON())
+    console.log(event)
+    console.log(transactions)
+    // console.log(runShells.toJSON())
   })
 }
 

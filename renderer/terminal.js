@@ -56,7 +56,6 @@ const term = new Terminal({
 term.open(document.getElementById('terminal'));
 
 ipcRenderer.on("terminal.incomingData", (event, data) => {
-  console.log(data)
   term.write(data);
 });
 
