@@ -1,7 +1,8 @@
 'use strict'
 
 const {ipcRenderer} = require('electron');
-
+const fs = require('fs');
+const pty = require("node-pty");
 const yjs = require("yjs");
 const {WebrtcProvider} = require("y-webrtc");
 const {yCollab, yUndoManagerKeymap} = require('y-codemirror.next');
@@ -27,16 +28,102 @@ const usernameInput = document.getElementById("username-input")
 const spawnButton = document.getElementById("spawn-button")
 const compileFlagInput = document.getElementById("compile-flag")
 const compileResult = document.getElementById("compile-result")
+const shellsContainer = document.getElementById("shells-container")
 
-ipcRenderer.on("index.compileResult", (event, data) => {
+/*
+Start Of Processes and Compilers Code
+ */
+
+const processMap = new Map()
+
+const runFile = (compileResultfile, shellArray, id) => {
+  const startTime = new Date()
+  const ptyProcess = pty.spawn(compileResultfile, [], {
+    name: "xterm-color",
+    cols: 80,
+    rows: 30,
+    cwd: path.join(process.env.HOME, 'p2cp'),
+    env: process.env
+  });
+  processMap.set("id", ptyProcess)
+  ptyProcess.onData(data => {
+    shellArray.push([data])
+  });
+  ptyProcess.onExit(data => {
+    if (!terminalWin.isDestroyed()) {
+      shellArray.push(["terminal.incomingData", "\r\n"])
+      shellArray.push(["terminal.incomingData",
+        `[Peer2CP: Exited with code ${data.exitCode}]\r\n`])
+      shellArray.push(
+          ["terminal.incomingData", `[Peer2CP: Signal ${data.signal}]\r\n`])
+      shellArray.push(["terminal.incomingData",
+        `[Peer2CP: Finished Running in ${((new Date()) - startTime)
+        / 1000}s]\r\n`])
+    }
+  })
+  ipcMain.on(`terminal.keystroke.${id}`, (event, key) => {
+    shellArray.push(["terminal.incomingData", "\r\n"])
+    ptyProcess.write(key);
+  });
+  ipcMain.on(`kill.${id}`, () => {
+    ptyProcess.kill()
+  })
+}
+
+const compile = (room, requestSource, runShells) => {
+  const p2cpdir = path.join(process.env.HOME, 'p2cp')
+  const codefile = path.join(p2cpdir, 'code.cpp')
+  const compileResultfile = path.join(p2cpdir, 'code')
+  if (!fs.existsSync(p2cpdir)) {
+    fs.mkdir(p2cpdir, (err) => {
+      if (err) {
+        console.log(err)
+      }
+    });
+  }
+  fs.writeFile(codefile, code, err => {
+    if (err) {
+      console.log(err)
+    }
+  })
+  const sendBack = (message, isReplace = false) => {
+    room.sendToUser(requestSource.source, JSON.stringify({
+      type: isReplace ? "compile-result" : "replace-compile", message: message
+    }))
+  }
+  sendBack("Compiling...\n", true)
+  const compileProcess = pty.spawn("g++", [codefile, "-o", compileResultfile],
+      {})
+  compileProcess.onData(data => {
+    sendBack(data)
+  })
+  compileProcess.onExit(data => {
+    sendBack(`Exited with code ${data.exitCode}`)
+    if (data.exitCode === 0) {
+      const uuid = crypto.randomUUID()
+      const shellArray = new yjs.Array();
+      runFile(compileResultfile, shellArray, uuid)
+      runShells.set(uuid, shellArray)
+    }
+  })
+}
+
+const compileResultHandler = (event, data) => {
   let tmpHtml = termToHtml.strings(data, termToHtml.themes.light.name)
   tmpHtml = /<pre[^>]*>((.|[\n\r])*)<\/pre>/im.exec(tmpHtml)[1];
   compileResult.innerHTML += tmpHtml
-})
+}
 
-ipcRenderer.on("index.replaceCompileResult", (event, data) => {
+const replaceCompileHandler = (event, data) => {
   compileResult.innerHTML = data
-})
+}
+
+ipcRenderer.on("index.compileResult", compileResultHandler)
+ipcRenderer.on("index.replaceCompileResult", replaceCompileHandler)
+
+/*
+End Of Compilers Code
+ */
 
 let codeMirrorView;
 let provider;
@@ -91,9 +178,11 @@ const updatePeersButton = (peers) => {
     const el = document.getElementById(`spawn-${key}`)
     el.addEventListener("click", () => {
       console.log("OK")
-      provider.room.sendToUser(key,
-          `kiriman dari ${provider.awareness.clientID}`)
-      runShells.push(`oke-${provider.awareness.clientID}-${key}`)
+      const message = JSON.stringify({
+        type: 'request',
+        source: provider.awareness.clientID
+      })
+      provider.room.sendToUser(key, message)
     })
   })
 }
@@ -112,13 +201,22 @@ const enterRoom = ({roomName, username}) => {
     name: username, color: userColor.color, colorLight: userColor.light
   })
   ytext = ydoc.getText('codemirror')
-  runShells = ydoc.getArray('shells')
+  runShells = ydoc.getMap('shells')
   provider.awareness.on("change", (status) => {
     let states = provider.awareness.getStates()
     peersStatus.innerHTML = (getPeersString(states)).innerHTML
     updatePeersButton(states)
   })
   provider.on("custom-message", (message) => {
+    message = JSON.parse(message)
+    if (message.type === "request") {
+      compile(provider.room, message)
+    } else if (message.type === "compile-result") {
+      compileResultHandler("", message.message)
+    } else if (message.type === "replace-compile") {
+      replaceCompileHandler("", message.message)
+    }
+    // runShells.push([`oke-${provider.awareness.clientID}-${key}`])
     console.log("Received Message")
     console.log(message)
   })
@@ -136,8 +234,19 @@ const enterRoom = ({roomName, username}) => {
     state,
     parent: /** @type {HTMLElement} */ (document.querySelector('#editor'))
   })
-  runShells.observe(event=>{
+  runShells.observe(event => {
+    shellsContainer.innerHTML = ""
+    for (const runShell of runShells) {
+      const ret = document.createElement("button")
+      ret.classList = "btn btn-light"
+      ret.textContent = runShell
+      shellsContainer.appendChild(ret)
+      ret.addEventListener('click', () => {
+        console.log(`ok-${runShell}`)
+      })
+    }
     console.log(event)
+    console.log(runShells.toArray())
   })
 }
 

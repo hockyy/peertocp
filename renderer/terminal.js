@@ -52,7 +52,7 @@ const term = new Terminal({
   cols: 80,
   cursorStyle: "bar",
 });
-w
+
 term.open(document.getElementById('terminal'));
 
 ipcRenderer.on("terminal.incomingData", (event, data) => {
