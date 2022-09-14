@@ -127,9 +127,7 @@ const enterRoom = ({roomName, username}) => {
       let code = ytext.toString()
       ipcRenderer.send(
           'request-compile',
-          provider.room,
           message.source,
-          runShells,
           code)
     } else if (message.type === "compile-result") {
       compileResultHandler("", message.message)

@@ -49,7 +49,7 @@ const runFile = (compileResultfile, shellArray, id) => {
   })
 }
 
-const compileHandler = (event, code) => {
+const compileHandler = (event, source, code) => {
   const p2cpdir = path.join(process.env.HOME, 'p2cp')
   const codefile = path.join(p2cpdir, 'code.cpp')
   const compileResultfile = path.join(p2cpdir, 'code')
