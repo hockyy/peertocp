@@ -41,7 +41,6 @@ const runFile = (compileResultfile, id) => {
         / 1000}s]\r\n`])
   })
   ipcMain.on(`terminal.keystroke.${id}`, (event, key) => {
-    updateTerminalData(["terminal.incomingData", "\r\n"])
     ptyProcess.write(key);
   });
   ipcMain.on(`terminal.kill.${id}`, () => {
@@ -118,6 +117,17 @@ const receiveSubscribedHandler = (event, accumulated) => {
 
 const keystrokeHandler = (event, e) => {
   console.log(JSON.stringify(e))
+  mainWindow.webContents.send(
+      "send-message",
+      "active-terminal",
+      JSON.stringify({
+        type: "keystroke", keystroke: e
+      })
+  )
+}
+
+const receiveKeystrokeHandler = (event, e) => {
+
 }
 
 const createWindow = () => {
@@ -141,6 +151,7 @@ app.whenReady().then(() => {
   ipcMain.on('request-compile', compileHandler)
   ipcMain.on('terminal.add-window', openTerminalHandler)
   ipcMain.on('terminal.keystroke', keystrokeHandler)
+  ipcMain.on('terminal.receive-keystroke', receiveKeystrokeHandler)
   ipcMain.on('terminal.send-subscribed', receiveSubscribedHandler)
 })
 

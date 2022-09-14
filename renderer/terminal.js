@@ -46,9 +46,8 @@ const LIGHT_MODE = {
   yellow: "#C4A000"
 }
 
-
 const term = new Terminal({
-  theme: DARK_MODE,
+  theme: LIGHT_MODE,
   rows: 30,
   cols: 80,
   cursorStyle: "bar",

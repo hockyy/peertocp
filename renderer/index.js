@@ -93,24 +93,6 @@ const updatePeersButton = (peers) => {
   })
 }
 
-const messageHandler = (message) => {
-  message = JSON.parse(message)
-  if (message.type === "request") {
-    let code = ytext.toString()
-    ipcRenderer.send(
-        'request-compile',
-        message.source,
-        code)
-  } else if (message.type === "compile-result") {
-    compileResultHandler(message.message)
-  } else if (message.type === "replace-compile") {
-    replaceCompileHandler(message.message)
-  }
-  // runShells.push([`oke-${provider.awareness.clientID}-${key}`])
-  // console.log("Received Message")
-  // console.log(message)
-}
-
 const enterRoom = ({roomName, username}) => {
   currentState = {roomName: roomName, username: username}
   roomStatus.textContent = roomName
@@ -218,6 +200,29 @@ const replaceCompileHandler = (data) => {
   compileResult.innerHTML = data
 }
 
+const messageHandler = (message) => {
+  message = JSON.parse(message)
+  if (message.type === "request") {
+    let code = ytext.toString()
+    ipcRenderer.send(
+        'request-compile',
+        message.source,
+        code)
+  } else if (message.type === "compile-result") {
+    compileResultHandler(message.message)
+  } else if (message.type === "replace-compile") {
+    replaceCompileHandler(message.message)
+  } else if (message.type === "keystroke") {
+    ipcRenderer.send(
+        'terminal.receive-keystroke',
+        message.keystroke
+    )
+  }
+  // runShells.push([`oke-${provider.awareness.clientID}-${key}`])
+  // console.log("Received Message")
+  // console.log(message)
+}
+
 const updateSubscribed = () => {
   // console.log("updating")
   // console.log(subscribedTerminalId)
@@ -234,6 +239,11 @@ const updateSubscribed = () => {
 
 // Send a certain message to a target user-client-id
 ipcRenderer.on("send-message", (event, target, message) => {
+  if (target === "active-terminal") {
+    target = runnerShells.get(subscribedTerminalId)
+    message.terminalId = subscribedTerminalId
+    console.log(target, message)
+  }
   if (target === provider.awareness.clientID) {
     messageHandler(message)
   } else {
