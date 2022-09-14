@@ -205,8 +205,8 @@ const enterRoom = ({roomName, username}) => {
   })
   // Set Up UUID after compile, meaning a shell is ready to be used
   ipcRenderer.on("terminal.uuid", (event, uuid) => {
-    runShells.set(uuid, new yjs.Array())
     runnerShells.set(uuid, provider.awareness.clientID)
+    runShells.set(uuid, new yjs.Array())
   })
 
   ipcRenderer.on('terminal.update', (event, uuid, data) => {

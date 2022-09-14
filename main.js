@@ -103,7 +103,7 @@ const openTerminalHandler = (event, id) => {
   })
   terminalWin.loadFile(path.join('renderer', 'terminal.html'))
   // Subscribe to id
-  console.log(id)
+  // console.log(id)
   mainWindow.webContents.send("terminal.subscribe", id)
   terminalWin.on('closed', () => {
     mainWindow.webContents.send("terminal.unsubscribe", id)
