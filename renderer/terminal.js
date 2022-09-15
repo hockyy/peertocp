@@ -24,26 +24,27 @@ const DARK_MODE = {
 }
 
 const LIGHT_MODE = {
-  background: "#FCFFF3",
-  black: "#000000",
-  blue: "#3465A4",
-  brightBlack: "#555753",
-  brightBlue: "#729FCF",
-  brightCyan: "#34E2E2",
-  brightGreen: "#78C42D",
-  brightPurple: "#AD7FA8",
-  brightRed: "#EF2929",
-  brightWhite: "#D4D4D2",
-  brightYellow: "#FCE94F",
-  cursorColor: "#000000",
-  cyan: "#06989A",
-  foreground: "#555753",
-  green: "#4E9A06",
-  purple: "#75507B",
-  red: "#CC0000",
-  selectionBackground: "#CFCDBC",
-  white: "#D3D7CF",
-  yellow: "#C4A000"
+  "name": "Tango Light",
+  "foreground": "#555753",
+  "background": "#FFFFFF",
+  "cursor": "#000000",
+  "cursorAccent": "#000000",
+  "black": "#000000",
+  "red": "#CC0000",
+  "green": "#4E9A06",
+  "yellow": "#C4A000",
+  "blue": "#3465A4",
+  "purple": "#75507B",
+  "cyan": "#06989A",
+  "white": "#D3D7CF",
+  "brightBlack": "#555753",
+  "brightRed": "#EF2929",
+  "brightGreen": "#8AE234",
+  "brightYellow": "#FCE94F",
+  "brightBlue": "#729FCF",
+  "brightPurple": "#AD7FA8",
+  "brightCyan": "#34E2E2",
+  "brightWhite": "#EEEEEC"
 }
 
 const term = new Terminal({
