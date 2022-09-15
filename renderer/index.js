@@ -143,6 +143,8 @@ const enterRoom = ({roomName, username}) => {
         ipcRenderer.send('terminal.add-window', key);
       })
     })
+    // console.log("OK")
+    // console.log(subscribedTerminalId)
     if (subscribedTerminalId) {
       updateSubscribed()
     }
@@ -215,7 +217,8 @@ const messageHandler = (message) => {
   } else if (message.type === "keystroke") {
     ipcRenderer.send(
         'terminal.receive-keystroke',
-        message.keystroke
+        message.terminalId,
+        message.keystroke,
     )
   }
   // runShells.push([`oke-${provider.awareness.clientID}-${key}`])
@@ -228,13 +231,16 @@ const updateSubscribed = () => {
   // console.log(subscribedTerminalId)
   // console.log(subscribedSize)
   const messages = runShells.get(subscribedTerminalId).toArray()
-  // console.log(messages)
   let accumulated = ""
   for (let i = subscribedSize; i < messages.length; i++) {
     accumulated += messages[i]
   }
+  ipcRenderer.send(
+      'terminal.send-subscribed',
+      accumulated,
+      subscribedSize === 0
+  )
   subscribedSize = messages.length
-  ipcRenderer.send('terminal.send-subscribed', accumulated)
 }
 
 // Send a certain message to a target user-client-id
@@ -242,8 +248,9 @@ ipcRenderer.on("send-message", (event, target, message) => {
   if (target === "active-terminal") {
     target = runnerShells.get(subscribedTerminalId)
     message.terminalId = subscribedTerminalId
-    console.log(target, message)
+    message = JSON.stringify(message)
   }
+  // console.log(message)
   if (target === provider.awareness.clientID) {
     messageHandler(message)
   } else {

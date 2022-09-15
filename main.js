@@ -25,7 +25,7 @@ const runFile = (compileResultfile, id) => {
     cwd: path.join(process.env.HOME, 'p2cp'),
     env: process.env
   });
-  processMap.set("id", ptyProcess)
+  processMap.set(id, ptyProcess)
   const updateTerminalData = (data) => {
     mainWindow.webContents.send("terminal.update", id, data);
   }
@@ -40,12 +40,12 @@ const runFile = (compileResultfile, id) => {
         [`[Peer2CP: Finished Running in ${((new Date()) - startTime)
         / 1000}s]\r\n`])
   })
-  ipcMain.on(`terminal.keystroke.${id}`, (event, key) => {
-    ptyProcess.write(key);
-  });
-  ipcMain.on(`terminal.kill.${id}`, () => {
-    ptyProcess.kill()
-  })
+  // ipcMain.on(`terminal.keystroke.${id}`, (event, key) => {
+  //   ptyProcess.write(key);
+  // });
+  // ipcMain.on(`terminal.kill.${id}`, () => {
+  //   ptyProcess.kill()
+  // })
 }
 
 const compileHandler = (event, source, code) => {
@@ -76,6 +76,7 @@ const compileHandler = (event, source, code) => {
     sendBack(data)
   })
   compileProcess.onExit(data => {
+    // console.log("Exited")
     sendBack(`Exited with code ${data.exitCode}`)
     if (data.exitCode === 0) {
       const uuid = crypto.randomUUID()
@@ -100,34 +101,34 @@ const openTerminalHandler = (event, id) => {
       nodeIntegration: true, contextIsolation: false,
     }
   })
+  let loaded = false;
   terminalWin.loadFile(path.join('renderer', 'terminal.html'))
-  // Subscribe to id
-  // console.log(id)
-  mainWindow.webContents.send("terminal.subscribe", id)
+  terminalWin.webContents.once('did-finish-load', () => {
+    mainWindow.webContents.send("terminal.subscribe", id)
+  })
   terminalWin.on('closed', () => {
     mainWindow.webContents.send("terminal.unsubscribe", id)
   })
 }
 
-const receiveSubscribedHandler = (event, accumulated) => {
-  terminalWin.webContents.on('did-finish-load', () => {
-    terminalWin.webContents.send("terminal.incomingData", accumulated)
-  })
+const receiveSubscribedHandler = (event, accumulated, isFirstTime = false) => {
+  if(!terminalWin || terminalWin.isDestroyed()) return;
+  terminalWin.webContents.send("terminal.incomingData", accumulated)
 }
 
 const keystrokeHandler = (event, e) => {
-  console.log(JSON.stringify(e))
   mainWindow.webContents.send(
       "send-message",
       "active-terminal",
-      JSON.stringify({
+      {
         type: "keystroke", keystroke: e
-      })
+      }
   )
 }
 
-const receiveKeystrokeHandler = (event, e) => {
-
+const receiveKeystrokeHandler = (event, terminalId, keystroke) => {
+  const myProcess = processMap.get(terminalId)
+  myProcess.write(keystroke);
 }
 
 const createWindow = () => {
