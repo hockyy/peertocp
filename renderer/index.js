@@ -28,6 +28,13 @@ const compileFlagInput = document.getElementById("compile-flag")
 const compileResult = document.getElementById("compile-result")
 const shellsContainer = document.getElementById("shells-container")
 
+$("#sidebar").mCustomScrollbar({
+  theme: "dark",
+  axis: "y",
+  alwaysShowScrollbar: 2,
+  scrollInertia: 200
+});
+
 let codeMirrorView;
 let provider;
 let ytext;

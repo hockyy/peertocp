@@ -4,60 +4,78 @@
   <meta charset="UTF-8">
   <title>PeerToCP</title>
   <link rel="stylesheet" href="../assets/css/index.css">
-  <link rel="stylesheet" href="../assets/css/bootstrap.min.css"
-        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
-        crossorigin="anonymous">
+  <link rel="stylesheet" href="../assets/css/bootstrap.min.css">
+  <link rel="stylesheet" href="../assets/css/malihu.css">
+
+  <script>
+    window.$ = window.jQuery = require('jquery');
+    require('malihu-custom-scrollbar-plugin')($);
+    require('bootstrap');
+  </script>
 
 </head>
 <body>
-<div id="info-box">
-  <div id="input-container">
-    <div class="input-box">
-      <label for="room-name-input">
-        Room Name
-      </label>
-      <input id="room-name-input"/>
-    </div>
-    <div class="input-box">
-      <label for="username-input">
-        Username
-      </label>
-      <input id="username-input"/>
-    </div>
-  </div>
-  <button type="button" class="btn btn-danger m-2" id="connect-button">Disconnect</button>
+<div class="wrapper">
+  <nav id="sidebar">
 
-  <button type="button" class="btn btn-primary m-2" id="spawn-button">Spawn</button>
-  <div>
-    <div id="connection">
-      🔗 Connection: <b id="connection-status" class="online">Online</b>
+    <div class="sidebar-header">
+      <h3>PeerToCP</h3>
     </div>
-    <div id="room">
-      🏠️ Room: <b id="room-status"></b>
+    <div id="info-box">
+      <div id="input-container">
+        <div class="input-box">
+          <label for="room-name-input">
+            Room Name
+          </label>
+          <input id="room-name-input"/>
+        </div>
+        <div class="input-box">
+          <label for="username-input">
+            Username
+          </label>
+          <input id="username-input"/>
+        </div>
+      </div>
+      <button type="button" class="btn btn-danger m-2" id="connect-button">Disconnect</button>
+
+      <button type="button" class="btn btn-primary m-2" id="spawn-button">Spawn</button>
+      <div>
+        <div id="connection">
+          🔗 Connection: <b id="connection-status" class="online">Online</b>
+        </div>
+        <div id="room">
+          🏠️ Room: <b id="room-status"></b>
+        </div>
+        <div id="online-peers">
+          🧑‍🤝‍🧑 Online clients:
+          <div class="ml-3" id="peers-status"></div>
+        </div>
+      </div>
+      <div class="input-box">
+        <label for="compile-flag">
+          🖥 Compile Flag
+        </label>
+        <input id="compile-flag"/>
+        <pre class="compile-result" id="compile-result">No compiling task</pre>
+      </div>
+      <div class="input-box">
+        🏃‍ Active Shells:
+        <div id="shells-container">
+
+        </div>
+      </div>
     </div>
-    <div id="online-peers">
-      🧑‍🤝‍🧑 Online clients:
-      <div class="ml-3" id="peers-status"></div>
-    </div>
+  </nav>
+  <div id="content">
+
+<!--    <button type="button" id="sidebarCollapse" class="btn btn-sm btn-info mb-2">-->
+<!--      <i class="fas fa-align-left"></i>-->
+<!--      <span>Toggle Sidebar</span>-->
+<!--    </button>-->
+
+    <div id="editor"></div>
   </div>
 </div>
-
-<div class="input-box">
-  <label for="compile-flag">
-    🖥 Compile Flag
-  </label>
-  <input id="compile-flag"/>
-  <pre class="compile-result" id="compile-result">
-    No compiling task
-  </pre>
-</div>
-<div class="input-box">
-  🏃‍ Active Shells:
-  <div id="shells-container">
-
-  </div>
-</div>
-<div id="editor"></div>
 <script src="./index.js"></script>
 </body>
 </html>
