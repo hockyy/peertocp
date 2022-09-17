@@ -8,7 +8,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "package": "electron-forge package",
     "make": "npm-forge make",
-    "rebuild": "electron-rebuild"
+    "rebuild": "electron-rebuild",
+    "gitdeps": "npm-update-git-deps && npm install"
   },
   "author": "Hocky Yudhiono",
   "license": "ISC",
@@ -18,7 +19,8 @@
     "@electron-forge/maker-rpm": "^6.0.0-beta.65",
     "@electron-forge/maker-squirrel": "^6.0.0-beta.65",
     "@electron-forge/maker-zip": "^6.0.0-beta.65",
-    "electron": "^19.0.17"
+    "electron": "^19.0.17",
+    "npm-update-git-deps": "^1.7.0"
   },
   "dependencies": {
     "@codemirror/commands": "^6.1.0",
