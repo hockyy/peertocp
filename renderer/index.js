@@ -1,70 +1,49 @@
 'use strict'
 
 const {ipcRenderer} = require('electron');
-const {yCollab, yUndoManagerKeymap} = require('y-codemirror.next');
 
 const {
-  Update,
   receiveUpdates,
   sendableUpdates,
   collab,
   getSyncedVersion
 } = require("@codemirror/collab");
+const WEBSOCKET_URL = "ws://localhost:4443";
 const {basicSetup} = require("codemirror");
 const {ChangeSet, EditorState, Text} = require("@codemirror/state");
-const {EditorView, ViewPlugin, ViewUpdate, keymap} = require(
+const {EditorView, ViewPlugin, keymap} = require(
     "@codemirror/view");
-
+const {WebrtcProvider} = require("y-webrtc");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
-const {Observable} = require("lib0/observable");
 const yjs = require("yjs");
+const {func} = require("lib0");
 
-class Worker extends Observable {
+
+class Connection {
   constructor() {
-    super();
-    // The updates received so far (updates.length gives the current version)
-    this.updates = []
-    // The current document
-    this.doc = Text.of(["Start document"])
-    //!authorityMessage
-    this.pending = []
+    this.wsconn = new WebSocket(WEBSOCKET_URL);
+    this.wsconn.onmessage = (event) => {
+      console.log(event.data)
+    }
+    this.wsconn.onerror = err =>{
+      console.log(err)
+    }
+    this.wsconn.onopen = e =>{
+      console.log("connection established")
+      console.log()
+    }
   }
 
-  message(data, messageChannel) {
-    function resp(value) {
-      messageChannel[0].postMessage(JSON.stringify(value))
-    }
-
-    data = JSON.parse(data)
-    if (data.type === "pullUpdates") {
-      if (data.version < this.updates.length) {
-        resp(this.updates.slice(data.version))
-      } else {
-        this.pending.push(resp)
+  request(value) {
+    return new Promise(resolve => {
+      let channel = new MessageChannel()
+      channel.port2.onmessage = event => {
+        resolve(JSON.parse(event.data))
       }
-    } else if (data.type === "pushUpdates") {
-      if (data.version !== this.updates.length) {
-        resp(false)
-      } else {
-        for (let update of data.updates) {
-          // Convert the JSON representation to an actual ChangeSet
-          // instance
-          let changes = ChangeSet.fromJSON(update.changes)
-          this.updates.push({changes, clientID: update.clientID})
-          this.doc = changes.apply(this.doc)
-        }
-        resp(true)
-        // Notify pending requests
-        while (this.pending.length) {
-          this.pending.pop()
-          !(data.updates)
-        }
-      }
-    } else if (data.type === "getDocument") {
-      resp({version: this.updates.length, doc: this.doc.toString()})
-    }
+      this.worker.message(JSON.stringify(value), [channel.port1])
+    })
   }
 }
 
@@ -101,14 +80,13 @@ function getDocument(
   }))
 }
 
-//!peerExtension
-
 function peerExtension(startVersion, connection) {
   let plugin = ViewPlugin.fromClass(class {
     pushing = false
     done = false
 
     constructor(view) {
+      this.view = view;
       this.pull()
     }
 
@@ -130,6 +108,7 @@ function peerExtension(startVersion, connection) {
       // Regardless of whether the push failed or new updates came in
       // while it was running, try again if there's updates remaining
       if (sendableUpdates(this.view.state).length) {
+        // Updating again if not able to send updates
         setTimeout(() => this.push(), 100)
       }
     }
@@ -149,26 +128,6 @@ function peerExtension(startVersion, connection) {
   return [collab({startVersion}), plugin]
 }
 
-//!rest
-
-class Connection {
-  constructor(_worker) {
-    this.worker = _worker;
-  }
-
-  request(value){
-    return new Promise(resolve => {
-      let channel = new MessageChannel()
-      channel.port2.onmessage = event => resolve(JSON.parse(event.data))
-      this.worker.message(JSON.stringify(value), [channel.port1])
-    })
-  }
-}
-
-const worker = new Worker()
-
-async function addPeer() {
-}
 
 const SIGNALLING_SERVER_URL = 'ws://103.167.137.77:4444';
 const WEBSOCKET_SERVER_URL = 'ws://103.167.137.77:4443';
@@ -258,13 +217,16 @@ const updatePeersButton = (peers) => {
 }
 
 const enterRoom = async ({roomName, username}) => {
-
-  let {version, doc} = await getDocument(new Connection(worker))
   let connection = new Connection(worker)
+  let {version, doc} = await getDocument(connection)
   const state = EditorState.create({
     doc,
-    extensions: [keymap.of([indentWithTab]), basicSetup,
-      cpp(),  peerExtension(version, connection)]
+    extensions: [
+      keymap.of([indentWithTab]),
+      basicSetup,
+      cpp(),
+      peerExtension(version, connection)
+    ]
   })
 
   codeMirrorView = new EditorView({
