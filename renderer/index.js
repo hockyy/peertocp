@@ -42,7 +42,7 @@ class Connection {
       channel.port2.onmessage = event => {
         resolve(JSON.parse(event.data))
       }
-      this.worker.message(JSON.stringify(value), [channel.port1])
+      this.wsconn.send(JSON.stringify(value), [channel.port1])
     })
   }
 }
