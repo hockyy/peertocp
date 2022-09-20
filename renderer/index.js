@@ -1,17 +1,174 @@
 'use strict'
 
 const {ipcRenderer} = require('electron');
-const yjs = require("yjs");
-const {WebrtcProvider} = require("y-webrtc");
 const {yCollab, yUndoManagerKeymap} = require('y-codemirror.next');
 
-const {basicSetup, EditorView} = require("codemirror");
-const {keymap} = require("@codemirror/view");
-const {EditorState} = require("@codemirror/state");
+const {
+  Update,
+  receiveUpdates,
+  sendableUpdates,
+  collab,
+  getSyncedVersion
+} = require("@codemirror/collab");
+const {basicSetup} = require("codemirror");
+const {ChangeSet, EditorState, Text} = require("@codemirror/state");
+const {EditorView, ViewPlugin, ViewUpdate, keymap} = require(
+    "@codemirror/view");
+
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
-const {WebsocketProvider} = require("y-websocket");
+const {Observable} = require("lib0/observable");
+const yjs = require("yjs");
+
+class Worker extends Observable {
+  constructor() {
+    super();
+    // The updates received so far (updates.length gives the current version)
+    this.updates = []
+    // The current document
+    this.doc = Text.of(["Start document"])
+    //!authorityMessage
+    this.pending = []
+  }
+
+  message(data, messageChannel) {
+    function resp(value) {
+      messageChannel[0].postMessage(JSON.stringify(value))
+    }
+
+    data = JSON.parse(data)
+    if (data.type === "pullUpdates") {
+      if (data.version < this.updates.length) {
+        resp(this.updates.slice(data.version))
+      } else {
+        this.pending.push(resp)
+      }
+    } else if (data.type === "pushUpdates") {
+      if (data.version !== this.updates.length) {
+        resp(false)
+      } else {
+        for (let update of data.updates) {
+          // Convert the JSON representation to an actual ChangeSet
+          // instance
+          let changes = ChangeSet.fromJSON(update.changes)
+          this.updates.push({changes, clientID: update.clientID})
+          this.doc = changes.apply(this.doc)
+        }
+        resp(true)
+        // Notify pending requests
+        while (this.pending.length) {
+          this.pending.pop()
+          !(data.updates)
+        }
+      }
+    } else if (data.type === "getDocument") {
+      resp({version: this.updates.length, doc: this.doc.toString()})
+    }
+  }
+}
+
+function pushUpdates(
+    connection,
+    version,
+    fullUpdates
+) {
+  // Strip off transaction data
+  let updates = fullUpdates.map(u => ({
+    clientID: u.clientID,
+    changes: u.changes.toJSON()
+  }))
+  return connection.request({type: "pushUpdates", version, updates})
+}
+
+function pullUpdates(
+    connection,
+    version
+) {
+  return connection.request({type: "pullUpdates", version})
+  .then(updates => updates.map(u => ({
+    changes: ChangeSet.fromJSON(u.changes),
+    clientID: u.clientID
+  })))
+}
+
+function getDocument(
+    connection
+) {
+  return connection.request({type: "getDocument"}).then(data => ({
+    version: data.version,
+    doc: Text.of(data.doc.split("\n"))
+  }))
+}
+
+//!peerExtension
+
+function peerExtension(startVersion, connection) {
+  let plugin = ViewPlugin.fromClass(class {
+    pushing = false
+    done = false
+
+    constructor(view) {
+      this.pull()
+    }
+
+    update(update) {
+      if (update.docChanged) {
+        this.push()
+      }
+    }
+
+    async push() {
+      let updates = sendableUpdates(this.view.state)
+      if (this.pushing || !updates.length) {
+        return
+      }
+      this.pushing = true
+      let version = getSyncedVersion(this.view.state)
+      await pushUpdates(connection, version, updates)
+      this.pushing = false
+      // Regardless of whether the push failed or new updates came in
+      // while it was running, try again if there's updates remaining
+      if (sendableUpdates(this.view.state).length) {
+        setTimeout(() => this.push(), 100)
+      }
+    }
+
+    async pull() {
+      while (!this.done) {
+        let version = getSyncedVersion(this.view.state)
+        let updates = await pullUpdates(connection, version)
+        this.view.dispatch(receiveUpdates(this.view.state, updates))
+      }
+    }
+
+    destroy() {
+      this.done = true
+    }
+  })
+  return [collab({startVersion}), plugin]
+}
+
+//!rest
+
+class Connection {
+  constructor(_worker) {
+    this.worker = _worker;
+  }
+
+  request(value){
+    return new Promise(resolve => {
+      let channel = new MessageChannel()
+      channel.port2.onmessage = event => resolve(JSON.parse(event.data))
+      this.worker.message(JSON.stringify(value), [channel.port1])
+    })
+  }
+}
+
+const worker = new Worker()
+
+async function addPeer() {
+}
 
 const SIGNALLING_SERVER_URL = 'ws://103.167.137.77:4444';
 const WEBSOCKET_SERVER_URL = 'ws://103.167.137.77:4443';
@@ -100,7 +257,21 @@ const updatePeersButton = (peers) => {
   })
 }
 
-const enterRoom = ({roomName, username}) => {
+const enterRoom = async ({roomName, username}) => {
+
+  let {version, doc} = await getDocument(new Connection(worker))
+  let connection = new Connection(worker)
+  const state = EditorState.create({
+    doc,
+    extensions: [keymap.of([indentWithTab]), basicSetup,
+      cpp(),  peerExtension(version, connection)]
+  })
+
+  codeMirrorView = new EditorView({
+    state,
+    parent: /** @type {HTMLElement} */ (document.querySelector('#editor'))
+  })
+
   currentState = {roomName: roomName, username: username}
   roomStatus.textContent = roomName
   console.log("Entering room " + roomName)
@@ -113,7 +284,6 @@ const enterRoom = ({roomName, username}) => {
   provider.awareness.setLocalStateField('user', {
     name: username, color: userColor.color, colorLight: userColor.light
   })
-  ytext = ydoc.getText('codemirror')
   runShells = ydoc.getMap('shells')
   runnerShells = ydoc.getMap('shellRunner')
   provider.awareness.on("change", (status) => {
@@ -125,17 +295,6 @@ const enterRoom = ({roomName, username}) => {
   provider.on("custom-message", messageHandler)
   provider.on('set-peer-id', (peerId) => {
     provider.awareness.setLocalStateField('peerId', peerId)
-  })
-  const state = EditorState.create({
-    doc: ytext.toString(),
-    extensions: [keymap.of([...yUndoManagerKeymap, indentWithTab]), basicSetup,
-      cpp(), yCollab(ytext, provider.awareness)
-      // oneDark
-    ]
-  })
-  codeMirrorView = new EditorView({
-    state,
-    parent: /** @type {HTMLElement} */ (document.querySelector('#editor'))
   })
 
   runShells.observeDeep((event, transactions) => {
