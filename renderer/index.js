@@ -3,16 +3,13 @@
 const {ipcRenderer} = require('electron');
 
 const {
-  receiveUpdates,
-  sendableUpdates,
-  collab,
-  getSyncedVersion
+  receiveUpdates, sendableUpdates, collab, getSyncedVersion
 } = require("@codemirror/collab");
 const WEBSOCKET_URL = "ws://localhost:4443";
+const WebSocket = require('rpc-websockets').Client
 const {basicSetup} = require("codemirror");
 const {ChangeSet, EditorState, Text} = require("@codemirror/state");
-const {EditorView, ViewPlugin, keymap} = require(
-    "@codemirror/view");
+const {EditorView, ViewPlugin, keymap} = require("@codemirror/view");
 const {WebrtcProvider} = require("y-webrtc");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
@@ -20,74 +17,55 @@ const termToHtml = require('term-to-html')
 const yjs = require("yjs");
 const {func} = require("lib0");
 
+let wsConnection = new WebSocket(WEBSOCKET_URL, {
+  autoconnect: true,
+  max_reconnects: 0,
+});
 
-class Connection {
-  constructor() {
-    this.wsconn = new WebSocket(WEBSOCKET_URL);
-    this.wsconn.onmessage = (event) => {
-      console.log(event.data)
-    }
-    this.wsconn.onerror = err =>{
-      console.log(err)
-    }
-    this.wsconn.onopen = e =>{
-      console.log("connection established")
-      console.log()
-    }
-  }
-
-  request(value) {
-    return new Promise(resolve => {
-      let channel = new MessageChannel()
-      channel.port2.onmessage = event => {
-        resolve(JSON.parse(event.data))
-      }
-      this.wsconn.send(JSON.stringify(value), [channel.port1])
-    })
-  }
-}
-
-function pushUpdates(
-    connection,
-    version,
-    fullUpdates
-) {
-  // Strip off transaction data
+async function pushUpdates(version, fullUpdates) {
   let updates = fullUpdates.map(u => ({
-    clientID: u.clientID,
-    changes: u.changes.toJSON()
+    clientID: u.clientID, changes: u.changes.toJSON()
   }))
-  return connection.request({type: "pushUpdates", version, updates})
+  return await wsConnection.call("pushUpdates",
+      {docName: currentState.roomName, version: version, updates: fullUpdates})
 }
 
-function pullUpdates(
-    connection,
-    version
-) {
-  return connection.request({type: "pullUpdates", version})
-  .then(updates => updates.map(u => ({
-    changes: ChangeSet.fromJSON(u.changes),
-    clientID: u.clientID
-  })))
+async function pullUpdates(version) {
+  return await wsConnection.call("pullUpdates",
+      {docName: currentState.roomName, version: version}).then(
+      (updates) => updates.map(
+          u => ({changes: ChangeSet.fromJSON(u.changes), clientID: u.clientID}))
+  )
 }
 
-function getDocument(
-    connection
-) {
-  return connection.request({type: "getDocument"}).then(data => ({
-    version: data.version,
-    doc: Text.of(data.doc.split("\n"))
+async function getDocument() {
+  return await wsConnection.call("getDocument",
+      {docName: currentState.roomName}).then(data => ({
+    version: data.version, doc: Text.of(data.doc.split("\n"))
   }))
 }
 
-function peerExtension(startVersion, connection) {
+function subscribeNewUpdates() {
+  wsConnection.subscribe("newUpdates")
+}
+
+function unsubscribeNewUpdates() {
+  wsConnection.unsubscribe("newUpdates")
+}
+
+function peerExtension(startVersion) {
+
   let plugin = ViewPlugin.fromClass(class {
     pushing = false
-    done = false
 
     constructor(view) {
       this.view = view;
-      this.pull()
+      this.getDocument()
+      subscribeNewUpdates()
+      wsConnection.on("newUpdates", () => {
+        console.log("New Updates Available!")
+        this.pull()
+      })
     }
 
     update(update) {
@@ -103,7 +81,7 @@ function peerExtension(startVersion, connection) {
       }
       this.pushing = true
       let version = getSyncedVersion(this.view.state)
-      await pushUpdates(connection, version, updates)
+      await pushUpdates(version, updates)
       this.pushing = false
       // Regardless of whether the push failed or new updates came in
       // while it was running, try again if there's updates remaining
@@ -114,20 +92,17 @@ function peerExtension(startVersion, connection) {
     }
 
     async pull() {
-      while (!this.done) {
-        let version = getSyncedVersion(this.view.state)
-        let updates = await pullUpdates(connection, version)
-        this.view.dispatch(receiveUpdates(this.view.state, updates))
-      }
+      let version = getSyncedVersion(this.view.state)
+      let updates = await pullUpdates(version)
+      this.view.dispatch(receiveUpdates(this.view.state, updates))
     }
 
-    destroy() {
-      this.done = true
+    async destroy() {
+      wsConnection.removeEventListener("newUpdates")
     }
   })
   return [collab({startVersion}), plugin]
 }
-
 
 const SIGNALLING_SERVER_URL = 'ws://103.167.137.77:4444';
 const WEBSOCKET_SERVER_URL = 'ws://103.167.137.77:4443';
@@ -145,10 +120,7 @@ const compileResult = document.getElementById("compile-result")
 const shellsContainer = document.getElementById("shells-container")
 
 $("#sidebar").mCustomScrollbar({
-  theme: "dark",
-  axis: "y",
-  alwaysShowScrollbar: 2,
-  scrollInertia: 200
+  theme: "dark", axis: "y", alwaysShowScrollbar: 2, scrollInertia: 200
 });
 
 let codeMirrorView;
@@ -208,8 +180,7 @@ const updatePeersButton = (peers) => {
     el.addEventListener("click", () => {
       // console.log("OK")
       const message = JSON.stringify({
-        type: 'request',
-        source: provider.awareness.clientID
+        type: 'request', source: provider.awareness.clientID
       })
       provider.room.sendToUser(key, message)
     })
@@ -217,16 +188,11 @@ const updatePeersButton = (peers) => {
 }
 
 const enterRoom = async ({roomName, username}) => {
-  let connection = new Connection(worker)
-  let {version, doc} = await getDocument(connection)
+  let {version, doc} = await getDocument()
   const state = EditorState.create({
     doc,
-    extensions: [
-      keymap.of([indentWithTab]),
-      basicSetup,
-      cpp(),
-      peerExtension(version, connection)
-    ]
+    extensions: [keymap.of([indentWithTab]), basicSetup, cpp(),
+      peerExtension(version)]
   })
 
   codeMirrorView = new EditorView({
@@ -240,8 +206,7 @@ const enterRoom = async ({roomName, username}) => {
   const ydoc = new yjs.Doc()
   provider = new WebrtcProvider(roomName, ydoc, {
     // awareness: new Awareness(),
-    signaling: [SIGNALLING_SERVER_URL],
-    filterBcConns: false
+    signaling: [SIGNALLING_SERVER_URL], filterBcConns: false
   })
   provider.awareness.setLocalStateField('user', {
     name: username, color: userColor.color, colorLight: userColor.light
@@ -312,12 +277,7 @@ connectionButton.addEventListener('click', () => {
 
 spawnButton.addEventListener("click", () => {
   const code = ytext.toString()
-  ipcRenderer.send(
-      'request-compile',
-      provider.awareness.clientID,
-      code,
-      true
-  )
+  ipcRenderer.send('request-compile', provider.awareness.clientID, code, true)
 })
 
 const compileResultHandler = (data) => {
@@ -334,20 +294,14 @@ const messageHandler = (message) => {
   message = JSON.parse(message)
   if (message.type === "request") {
     let code = ytext.toString()
-    ipcRenderer.send(
-        'request-compile',
-        message.source,
-        code)
+    ipcRenderer.send('request-compile', message.source, code)
   } else if (message.type === "compile-result") {
     compileResultHandler(message.message)
   } else if (message.type === "replace-compile") {
     replaceCompileHandler(message.message)
   } else if (message.type === "keystroke") {
-    ipcRenderer.send(
-        'terminal.receive-keystroke',
-        message.terminalId,
-        message.keystroke,
-    )
+    ipcRenderer.send('terminal.receive-keystroke', message.terminalId,
+        message.keystroke,)
   }
   // runShells.push([`oke-${provider.awareness.clientID}-${key}`])
   // console.log("Received Message")
@@ -363,11 +317,8 @@ const updateSubscribed = () => {
   for (let i = subscribedSize; i < messages.length; i++) {
     accumulated += messages[i]
   }
-  ipcRenderer.send(
-      'terminal.send-subscribed',
-      accumulated,
-      subscribedSize === 0
-  )
+  ipcRenderer.send('terminal.send-subscribed', accumulated,
+      subscribedSize === 0)
   subscribedSize = messages.length
 }
 

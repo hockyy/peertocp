@@ -36,6 +36,7 @@
     "lib0": "^0.2.52",
     "malihu-custom-scrollbar-plugin": "^3.1.5",
     "node-pty": "^0.10.1",
+    "rpc-websockets": "^7.5.0",
     "term-to-html": "^1.2.0",
     "xterm": "^4.19.0",
     "y-codemirror.next": "^0.3.2",
