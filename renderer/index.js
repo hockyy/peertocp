@@ -5,7 +5,7 @@ const {ipcRenderer} = require('electron');
 const {
   receiveUpdates, sendableUpdates, collab, getSyncedVersion
 } = require("@codemirror/collab");
-const WEBSOCKET_URL = "ws://localhost:4443";
+const WEBSOCKET_URL = "ws://localhost:1234";
 const WebSocket = require('rpc-websockets').Client
 const {basicSetup} = require("codemirror");
 const {ChangeSet, EditorState, Text} = require("@codemirror/state");
@@ -17,55 +17,64 @@ const termToHtml = require('term-to-html')
 const yjs = require("yjs");
 const {func} = require("lib0");
 
-let wsConnection = new WebSocket(WEBSOCKET_URL, {
-  autoconnect: true,
-  max_reconnects: 0,
-});
+class Connection {
+  constructor() {
+    this.wsconn = new WebSocket(WEBSOCKET_URL, {
+      autoconnect: true, max_reconnects: 0,
+    });
+    this.ready = false
+    this.wsconn.once("open", () => {
+      this.ready = true
+    })
+  }
 
-async function pushUpdates(version, fullUpdates) {
-  let updates = fullUpdates.map(u => ({
-    clientID: u.clientID, changes: u.changes.toJSON()
-  }))
-  return await wsConnection.call("pushUpdates",
-      {docName: currentState.roomName, version: version, updates: fullUpdates})
+  pushUpdates(version, fullUpdates) {
+    console.log("Push ", version, fullUpdates)
+    let updates = fullUpdates.map(u => ({
+      clientID: u.clientID, changes: u.changes.toJSON()
+    }))
+    return this.wsconn.call("pushUpdates", {
+      docName: currentState.roomName, version: version, updates: fullUpdates
+    })
+  }
+
+  async pullUpdates(version) {
+    return await this.wsconn.call("pullUpdates",
+        {docName: currentState.roomName, version: version}).then(
+        (updates) => updates.map(u => ({
+          changes: ChangeSet.fromJSON(u.changes), clientID: u.clientID
+        })))
+  }
+
+  async subscribe() {
+    this.isReady().then(() => {
+      console.log("HAH")
+      this.wsconn.subscribe("newUpdates")
+      this.wsconn.on("newUpdates", () => {
+        console.log("new Update")
+      })
+    })
+  }
+
+  async isReady() {
+    return new Promise((resolve) => {
+      const checker = () => {
+        if(this.ready) resolve(this.ready)
+        else setTimeout(100, checker)
+      }
+    })
+  }
 }
 
-async function pullUpdates(version) {
-  return await wsConnection.call("pullUpdates",
-      {docName: currentState.roomName, version: version}).then(
-      (updates) => updates.map(
-          u => ({changes: ChangeSet.fromJSON(u.changes), clientID: u.clientID}))
-  )
-}
-
-async function getDocument() {
-  return await wsConnection.call("getDocument",
-      {docName: currentState.roomName}).then(data => ({
-    version: data.version, doc: Text.of(data.doc.split("\n"))
-  }))
-}
-
-function subscribeNewUpdates() {
-  wsConnection.subscribe("newUpdates")
-}
-
-function unsubscribeNewUpdates() {
-  wsConnection.unsubscribe("newUpdates")
-}
-
-function peerExtension(startVersion) {
+function peerExtension(startVersion, connection) {
 
   let plugin = ViewPlugin.fromClass(class {
     pushing = false
 
     constructor(view) {
       this.view = view;
-      this.getDocument()
-      subscribeNewUpdates()
-      wsConnection.on("newUpdates", () => {
-        console.log("New Updates Available!")
-        this.pull()
-      })
+      connection.subscribe()
+      this.pull()
     }
 
     update(update) {
@@ -81,7 +90,7 @@ function peerExtension(startVersion) {
       }
       this.pushing = true
       let version = getSyncedVersion(this.view.state)
-      await pushUpdates(version, updates)
+      await connection.pushUpdates(version, updates)
       this.pushing = false
       // Regardless of whether the push failed or new updates came in
       // while it was running, try again if there's updates remaining
@@ -92,13 +101,15 @@ function peerExtension(startVersion) {
     }
 
     async pull() {
+      console.log("Pulling cuy")
       let version = getSyncedVersion(this.view.state)
-      let updates = await pullUpdates(version)
+      let updates = await connection.pullUpdates(version)
       this.view.dispatch(receiveUpdates(this.view.state, updates))
     }
 
-    async destroy() {
-      wsConnection.removeEventListener("newUpdates")
+    destroy() {
+      connection.wsconn.unsubscribe("newUpdates")
+      connection.wsconn.removeEventListener("newUpdates", this.updater)
     }
   })
   return [collab({startVersion}), plugin]
@@ -149,8 +160,10 @@ const getEnterState = () => {
   };
 }
 
-window.addEventListener('load', () => {
-  enterRoom(getEnterState())
+window
+.addEventListener('load', () => {
+  enterRoom(getEnterState
+  ())
 })
 
 const getPeersString = (peers) => {
@@ -188,11 +201,11 @@ const updatePeersButton = (peers) => {
 }
 
 const enterRoom = async ({roomName, username}) => {
-  let {version, doc} = await getDocument()
+  const connection = new Connection()
   const state = EditorState.create({
-    doc,
+    doc: "",
     extensions: [keymap.of([indentWithTab]), basicSetup, cpp(),
-      peerExtension(version)]
+      peerExtension(0, connection)]
   })
 
   codeMirrorView = new EditorView({
