@@ -5,7 +5,7 @@ const {ipcRenderer} = require('electron');
 const {
   receiveUpdates, sendableUpdates, collab, getSyncedVersion
 } = require("@codemirror/collab");
-const WEBSOCKET_URL = "ws://localhost:1234";
+const WEBSOCKET_URL = "ws://localhost:4443";
 const WebSocket = require('rpc-websockets').Client
 const {basicSetup} = require("codemirror");
 const {ChangeSet, EditorState, Text} = require("@codemirror/state");
@@ -14,55 +14,53 @@ const {WebrtcProvider} = require("y-webrtc");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
-const yjs = require("yjs");
+
 const {func} = require("lib0");
 
 class Connection {
   constructor() {
+    this.pulling = false;
     this.wsconn = new WebSocket(WEBSOCKET_URL, {
       autoconnect: true, max_reconnects: 0,
     });
-    this.ready = false
-    this.wsconn.once("open", () => {
-      this.ready = true
-    })
   }
 
-  pushUpdates(version, fullUpdates) {
-    console.log("Push ", version, fullUpdates)
-    let updates = fullUpdates.map(u => ({
-      clientID: u.clientID, changes: u.changes.toJSON()
-    }))
-    return this.wsconn.call("pushUpdates", {
-      docName: currentState.roomName, version: version, updates: fullUpdates
-    })
+  async pushUpdates(version, fullUpdates) {
+    try {
+      if (!this.wsconn.socket || this.wsconn.socket.readyState !== 1) {
+        return false;
+      }
+      let updates = fullUpdates.map(u => ({
+        clientID: u.clientID, changes: u.changes.toJSON()
+      }))
+      return this.wsconn.call("pushUpdates", {
+        docName: currentState.roomName, version: version, updates: fullUpdates
+      })
+    } catch (e) {
+      console.log("Push error", e)
+      return false;
+    }
+
   }
 
   async pullUpdates(version) {
-    return await this.wsconn.call("pullUpdates",
-        {docName: currentState.roomName, version: version}).then(
-        (updates) => updates.map(u => ({
-          changes: ChangeSet.fromJSON(u.changes), clientID: u.clientID
-        })))
-  }
-
-  async subscribe() {
-    this.isReady().then(() => {
-      console.log("HAH")
-      this.wsconn.subscribe("newUpdates")
-      this.wsconn.on("newUpdates", () => {
-        console.log("new Update")
-      })
-    })
-  }
-
-  async isReady() {
-    return new Promise((resolve) => {
-      const checker = () => {
-        if(this.ready) resolve(this.ready)
-        else setTimeout(100, checker)
+    try {
+      if (!this.wsconn.socket || this.wsconn.socket.readyState !== 1
+          || this.pulling) {
+        return [];
       }
-    })
+      this.pulling = true;
+      const res = this.wsconn.call("pullUpdates",
+          {docName: currentState.roomName, version: version}).then(
+          (updates) => updates.map(u => ({
+            changes: ChangeSet.fromJSON(u.changes), clientID: u.clientID
+          })))
+      this.pulling = false;
+      return res;
+    } catch (e) {
+      console.log("Pull error", e)
+      return []
+    }
   }
 }
 
@@ -73,8 +71,28 @@ function peerExtension(startVersion, connection) {
 
     constructor(view) {
       this.view = view;
-      connection.subscribe()
-      this.pull()
+      this.subscribed = false;
+      console.log(connection)
+      const subAndPut = () => {
+        if (this.subscribed) {
+          return;
+        }
+        if (!connection.wsconn.socket) {
+          return;
+        }
+        if (connection.wsconn.socket.readyState !== 1) {
+          return;
+        }
+        this.pull()
+        this.subscribed = true;
+        connection.wsconn.subscribe("newUpdates")
+        connection.wsconn.on("newUpdates", () => {
+          this.pull();
+        })
+      }
+      subAndPut()
+      connection.wsconn.once("open", subAndPut)
+      subAndPut()
     }
 
     update(update) {
@@ -101,7 +119,6 @@ function peerExtension(startVersion, connection) {
     }
 
     async pull() {
-      console.log("Pulling cuy")
       let version = getSyncedVersion(this.view.state)
       let updates = await connection.pullUpdates(version)
       this.view.dispatch(receiveUpdates(this.view.state, updates))
@@ -109,14 +126,11 @@ function peerExtension(startVersion, connection) {
 
     destroy() {
       connection.wsconn.unsubscribe("newUpdates")
-      connection.wsconn.removeEventListener("newUpdates", this.updater)
     }
   })
   return [collab({startVersion}), plugin]
 }
 
-const SIGNALLING_SERVER_URL = 'ws://103.167.137.77:4444';
-const WEBSOCKET_SERVER_URL = 'ws://103.167.137.77:4443';
 const DEFAULT_ROOM = 'welcome-room'
 const DEFAULT_USERNAME = 'Anonymous ' + Math.floor(Math.random() * 100)
 const roomStatus = document.getElementById("room-status")
@@ -135,10 +149,7 @@ $("#sidebar").mCustomScrollbar({
 });
 
 let codeMirrorView;
-let provider;
 let ytext;
-let runShells;
-let runnerShells;
 let currentState = {};
 let subscribedTerminalId;
 let subscribedSize;
@@ -166,40 +177,6 @@ window
   ())
 })
 
-const getPeersString = (peers) => {
-  const ret = document.createElement("ul")
-  peers.forEach((val, key) => {
-    const cur = document.createElement("li");
-    cur.innerHTML = (`${key} - ${val.user.name}\n`)
-    cur.style.color = `${val.user.color}`
-    if (key !== provider.awareness.clientID) {
-      const spawnOtherPeerButton = document.createElement("button")
-      spawnOtherPeerButton.classList = "btn btn-warning btn-sm"
-      spawnOtherPeerButton.id = `spawn-${key}`
-      spawnOtherPeerButton.textContent = "Request Run"
-      cur.append(spawnOtherPeerButton)
-    }
-    ret.appendChild(cur)
-  })
-  return ret;
-}
-
-const updatePeersButton = (peers) => {
-  peers.forEach((val, key) => {
-    if (key === provider.awareness.clientID) {
-      return
-    }
-    const el = document.getElementById(`spawn-${key}`)
-    el.addEventListener("click", () => {
-      // console.log("OK")
-      const message = JSON.stringify({
-        type: 'request', source: provider.awareness.clientID
-      })
-      provider.room.sendToUser(key, message)
-    })
-  })
-}
-
 const enterRoom = async ({roomName, username}) => {
   const connection = new Connection()
   const state = EditorState.create({
@@ -216,81 +193,27 @@ const enterRoom = async ({roomName, username}) => {
   currentState = {roomName: roomName, username: username}
   roomStatus.textContent = roomName
   console.log("Entering room " + roomName)
-  const ydoc = new yjs.Doc()
-  provider = new WebrtcProvider(roomName, ydoc, {
-    // awareness: new Awareness(),
-    signaling: [SIGNALLING_SERVER_URL], filterBcConns: false
-  })
-  provider.awareness.setLocalStateField('user', {
-    name: username, color: userColor.color, colorLight: userColor.light
-  })
-  runShells = ydoc.getMap('shells')
-  runnerShells = ydoc.getMap('shellRunner')
-  provider.awareness.on("change", (status) => {
-    let states = provider.awareness.getStates()
-    peersStatus.innerHTML = (getPeersString(states)).innerHTML
-    updatePeersButton(states)
-  })
 
-  provider.on("custom-message", messageHandler)
-  provider.on('set-peer-id', (peerId) => {
-    provider.awareness.setLocalStateField('peerId', peerId)
-  })
-
-  runShells.observeDeep((event, transactions) => {
-    shellsContainer.innerHTML = ""
-    runShells.forEach((val, key) => {
-      const ret = document.createElement("button")
-      ret.classList = "btn btn-light"
-      ret.textContent = `${key} running in ${runnerShells.get(key)}`
-      shellsContainer.appendChild(ret)
-      ret.addEventListener('click', () => {
-        // console.log(key)
-        ipcRenderer.send('terminal.add-window', key);
-      })
-    })
-    // console.log("OK")
-    // console.log(subscribedTerminalId)
-    if (subscribedTerminalId) {
-      updateSubscribed()
-    }
-    // console.log(event)
-    // console.log(transactions)
-    // console.log(runShells.toJSON())
-  })
+  // console.log("OK")
+  // console.log(subscribedTerminalId)
+  if (subscribedTerminalId) {
+    updateSubscribed()
+  }
+  // console.log(event)
+  // console.log(transactions)
+  // console.log(runShells.toJSON())
 }
 
 connectionButton.addEventListener('click', () => {
-  if (provider.shouldConnect) {
-    provider.disconnect()
-    // provider.destroy()
-    connectionButton.textContent = 'Connect'
-    connectionButton.classList.replace("btn-danger", "btn-success")
-    connectionStatus.textContent = "Offline"
-    connectionStatus.classList.remove('online')
-    connectionStatus.classList.add('offline')
-    peersStatus.innerHTML = ""
-    shellsContainer.innerHTML = ""
-  } else {
-    const enterState = getEnterState()
-    if (enterState !== currentState) {
-      provider.destroy()
-      codeMirrorView.destroy()
-      enterRoom(enterState)
-    } else {
-      provider.connect()
-    }
-    connectionStatus.textContent = "Online"
-    connectionStatus.classList.remove('offline')
-    connectionStatus.classList.add('online')
-    connectionButton.textContent = 'Disconnect'
-    connectionButton.classList.replace("btn-success", "btn-danger")
+  const enterState = getEnterState()
+  if (enterState !== currentState) {
+    codeMirrorView.destroy()
+    enterRoom(enterState)
   }
 })
 
 spawnButton.addEventListener("click", () => {
-  const code = ytext.toString()
-  ipcRenderer.send('request-compile', provider.awareness.clientID, code, true)
+
 })
 
 const compileResultHandler = (data) => {
@@ -325,7 +248,6 @@ const updateSubscribed = () => {
   // console.log("updating")
   // console.log(subscribedTerminalId)
   // console.log(subscribedSize)
-  const messages = runShells.get(subscribedTerminalId).toArray()
   let accumulated = ""
   for (let i = subscribedSize; i < messages.length; i++) {
     accumulated += messages[i]
@@ -341,12 +263,6 @@ ipcRenderer.on("send-message", (event, target, message) => {
     target = runnerShells.get(subscribedTerminalId)
     message.terminalId = subscribedTerminalId
     message = JSON.stringify(message)
-  }
-  // console.log(message)
-  if (target === provider.awareness.clientID) {
-    messageHandler(message)
-  } else {
-    provider.room.sendToUser(target, message)
   }
 })
 
@@ -366,12 +282,8 @@ ipcRenderer.on("terminal.unsubscribe", (event, id) => {
 
 // Set Up UUID after compile, meaning a shell is ready to be used
 ipcRenderer.on("terminal.uuid", (event, uuid) => {
-  runnerShells.set(uuid, provider.awareness.clientID)
-  runShells.set(uuid, new yjs.Array())
 })
 
 // Updates terminal
 ipcRenderer.on('terminal.update', (event, uuid, data) => {
-  const history = runShells.get(uuid);
-  history.push(data)
 })
