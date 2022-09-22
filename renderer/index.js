@@ -19,13 +19,13 @@ const {func} = require("lib0");
 
 class Connection {
   constructor() {
-    this.pulling = false;
     this.wsconn = new WebSocket(WEBSOCKET_URL, {
       autoconnect: true, max_reconnects: 0,
     });
   }
 
   async pushUpdates(version, fullUpdates) {
+    // console.log(version)
     try {
       if (!this.wsconn.socket || this.wsconn.socket.readyState !== 1) {
         return false;
@@ -37,7 +37,7 @@ class Connection {
         docName: currentState.roomName, version: version, updates: fullUpdates
       })
     } catch (e) {
-      console.log("Push error", e)
+      // console.log("Push error", e)
       return false;
     }
 
@@ -45,20 +45,17 @@ class Connection {
 
   async pullUpdates(version) {
     try {
-      if (!this.wsconn.socket || this.wsconn.socket.readyState !== 1
-          || this.pulling) {
+      if (!this.wsconn.socket || this.wsconn.socket.readyState !== 1) {
         return [];
       }
-      this.pulling = true;
       const res = this.wsconn.call("pullUpdates",
           {docName: currentState.roomName, version: version}).then(
           (updates) => updates.map(u => ({
             changes: ChangeSet.fromJSON(u.changes), clientID: u.clientID
           })))
-      this.pulling = false;
       return res;
     } catch (e) {
-      console.log("Pull error", e)
+      // console.log("Pull error", e)
       return []
     }
   }
@@ -68,11 +65,12 @@ function peerExtension(startVersion, connection) {
 
   let plugin = ViewPlugin.fromClass(class {
     pushing = false
+    pulling = false;
 
     constructor(view) {
       this.view = view;
       this.subscribed = false;
-      console.log(connection)
+      // console.log(connection)
       const subAndPut = () => {
         if (this.subscribed) {
           return;
@@ -102,26 +100,45 @@ function peerExtension(startVersion, connection) {
     }
 
     async push() {
+      if (this.pushing) {
+        return;
+      }
       let updates = sendableUpdates(this.view.state)
-      if (this.pushing || !updates.length) {
-        return
+      if (!updates.length) {
+        return;
       }
       this.pushing = true
-      let version = getSyncedVersion(this.view.state)
-      await connection.pushUpdates(version, updates)
+      try {
+        let version = getSyncedVersion(this.view.state)
+        const updated = await connection.pushUpdates(version, updates)
+      } catch (e) {
+        // console.log(e)
+      }
       this.pushing = false
       // Regardless of whether the push failed or new updates came in
       // while it was running, try again if there's updates remaining
       if (sendableUpdates(this.view.state).length) {
-        // Updating again if not able to send updates
-        setTimeout(() => this.push(), 100)
+        this.pull().then(() => {
+          this.push()
+        })
       }
     }
 
     async pull() {
-      let version = getSyncedVersion(this.view.state)
-      let updates = await connection.pullUpdates(version)
-      this.view.dispatch(receiveUpdates(this.view.state, updates))
+      if (this.pulling) {
+        return;
+      }
+      this.pulling = true;
+      try {
+        let version = getSyncedVersion(this.view.state)
+        let updates = await connection.pullUpdates(version)
+        // console.log(updates)
+        this.view.dispatch(receiveUpdates(this.view.state, updates))
+      } catch (e) {
+        // console.log("error")
+        // console.log(e)
+      }
+      this.pulling = false;
     }
 
     destroy() {
