@@ -3,7 +3,7 @@
 const {ipcRenderer} = require('electron');
 
 const {
-  receiveUpdates, sendableUpdates, collab, getSyncedVersion
+  receiveUpdates, sendableUpdates, collab, getSyncedVersion, getClientID
 } = require("@codemirror/collab");
 const WEBSOCKET_URL = "ws://localhost:4443";
 const WebSocket = require('rpc-websockets').Client
@@ -14,8 +14,10 @@ const {WebrtcProvider} = require("y-webrtc");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
-
 const {func} = require("lib0");
+const crypto = require('crypto');
+
+let runShells;
 
 class Connection {
   constructor() {
@@ -40,19 +42,36 @@ class Connection {
       // console.log("Push error", e)
       return false;
     }
-
   }
 
-  async pullUpdates(version) {
+  async pushShellUpdates(shellVersion, shellUpdates) {
+    try {
+      if (!this.wsconn.socket || this.wsconn.socket.readyState !== 1) {
+        return false;
+      }
+      return this.wsconn.call("pushUpdates", {
+        docName: currentState.roomName,
+        shellVersion: shellVersion,
+        shellUpdates: shellUpdates
+      })
+    } catch (e) {
+      // console.log("Push error", e)
+      return false;
+    }
+  }
+
+  async pullUpdates(version, shellVersion) {
     try {
       if (!this.wsconn.socket || this.wsconn.socket.readyState !== 1) {
         return [];
       }
-      const res = this.wsconn.call("pullUpdates",
-          {docName: currentState.roomName, version: version}).then(
-          (updates) => updates.map(u => ({
-            changes: ChangeSet.fromJSON(u.changes), clientID: u.clientID
-          })))
+      const res = this.wsconn.call("pullUpdates", {
+        docName: currentState.roomName,
+        version: version,
+        shellVersion: shellVersion
+      }).then((updates) => updates.map(u => ({
+        changes: ChangeSet.fromJSON(u.changes), clientID: u.clientID
+      })))
       return res;
     } catch (e) {
       // console.log("Pull error", e)
@@ -64,12 +83,16 @@ class Connection {
 function peerExtension(startVersion, connection) {
 
   let plugin = ViewPlugin.fromClass(class {
-    pushing = false
+    pushingShell = false;
+    pushing = false;
     pulling = false;
+    shellVersion = 0;
+    pendingShellUpdates = [];
 
     constructor(view) {
       this.view = view;
       this.subscribed = false;
+      this.clientID = getClientID(this.view.state)
       // console.log(connection)
       const subAndPut = () => {
         if (this.subscribed) {
@@ -96,6 +119,36 @@ function peerExtension(startVersion, connection) {
     update(update) {
       if (update.docChanged) {
         this.push()
+      }
+    }
+
+    async pushShell() {
+      if (this.pushingShell) {
+        return;
+      }
+      if (!this.pendingShellUpdates.length) {
+        return;
+      }
+      this.pushingShell = true;
+      const pushingCurrent = this.pendingShellUpdates.slice(0)
+      let updated = false;
+      try {
+        updated = await connection.pushShellUpdates(this.shellVersion,
+            pushingCurrent)
+      } catch (e) {
+        // console.log(e)
+      }
+      if (updated) {
+        const updatedSize = pushingCurrent.length
+        this.pendingShellUpdates.splice(0, updatedSize)
+      }
+      this.pushingShell = false;
+      // Regardless of whether the push failed or new updates came in
+      // while it was running, try again if there's updates remaining
+      if (this.pendingShellUpdates.length) {
+        this.pull().then(() => {
+          this.pushShell()
+        })
       }
     }
 
@@ -131,9 +184,51 @@ function peerExtension(startVersion, connection) {
       this.pulling = true;
       try {
         let version = getSyncedVersion(this.view.state)
-        let updates = await connection.pullUpdates(version)
-        // console.log(updates)
-        this.view.dispatch(receiveUpdates(this.view.state, updates))
+        let updates = await connection.pullUpdates(version, this.shellVersion)
+        this.view.dispatch(receiveUpdates(this.view.state, updates.updates))
+        this.shellVersion += updates.shellUpdates.length
+        for (const shellUpdate of updates.shellUpdates) {
+          switch (shellUpdate.type) {
+            case "shell.spawn":
+              runShells.set(shellUpdate.shellID, [])
+              break
+            case "shell.info":
+              const currentShell = runShells.get(shellUpdate.shellID);
+              currentShell.push(shellUpdate.message)
+              break
+            case "shell.compile":
+              if (shellUpdate.toID === getClientID(this.view.state)) {
+                if (shellUpdate.append) {
+                  compileResultHandler(
+                      shellUpdate.message)
+                } else {
+                  replaceCompileHandler(shellUpdate.message)
+                }
+              }
+              break
+            case "shell.keystroke":
+              if (shellUpdate.toID === getClientID(this.view.state)) {
+                ipcRenderer.send(
+                    'terminal.receive-keystroke',
+                    shellUpdate.terminalId,
+                    shellUpdate.keystroke,
+                )
+              }
+              break
+            case "shell.request":
+              if (shellUpdate.toID === getClientID(this.view.state)) {
+
+                const currentCode = this.view.toString()
+                console.log(currentCode)
+                ipcRenderer.send(
+                    'request-compile',
+                    getClientID(this.view.state),
+                    currentCode
+                )
+              }
+              break
+          }
+        }
       } catch (e) {
         // console.log("error")
         // console.log(e)
@@ -190,12 +285,15 @@ const getEnterState = () => {
 
 window
 .addEventListener('load', () => {
-  enterRoom(getEnterState
-  ())
+  enterRoom(getEnterState())
 })
 
 const enterRoom = async ({roomName, username}) => {
   const connection = new Connection()
+  if (runShells) {
+    runShells.destroy()
+  }
+  runShells = new Map()
   const state = EditorState.create({
     doc: "",
     extensions: [keymap.of([indentWithTab]), basicSetup, cpp(),
