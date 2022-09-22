@@ -151,6 +151,7 @@ function peerExtension(startVersion, connection) {
       }
       this.initDone = true;
       this.pull()
+      this.push()
       this.updatePeers()
       connection.wsconn.on("newUpdates", () => {
         this.pull();
