@@ -174,7 +174,7 @@ connectionButton.addEventListener('click', () => {
     shellsContainer.innerHTML = ""
   } else {
     const enterState = getEnterState()
-    if (enterState !== currentState) {
+    if (JSON.stringify(enterState) !== JSON.stringify(currentState)) {
       provider.destroy()
       codeMirrorView.destroy()
       enterRoom(enterState)
