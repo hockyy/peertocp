@@ -10,24 +10,22 @@ const WebSocket = require('rpc-websockets').Client
 const {basicSetup} = require("codemirror");
 const {ChangeSet, EditorState, Text} = require("@codemirror/state");
 const {EditorView, ViewPlugin, keymap} = require("@codemirror/view");
-const {WebrtcProvider} = require("y-webrtc");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
 const {func} = require("lib0");
-const crypto = require('crypto');
 
 let runShells;
 
 class Connection {
-  constructor() {
-    this.wsconn = new WebSocket(WEBSOCKET_URL, {
-      autoconnect: true, max_reconnects: 0,
+  constructor(docName) {
+    this.wsconn = new WebSocket(`${WEBSOCKET_URL}/${docName}`, {
+      autoconnect: true,
+      max_reconnects: 0,
     });
   }
 
   async pushUpdates(version, fullUpdates) {
-    // console.log(version)
     try {
       if (!this.wsconn.socket || this.wsconn.socket.readyState !== 1) {
         return false;
@@ -39,7 +37,6 @@ class Connection {
         docName: currentState.roomName, version: version, updates: fullUpdates
       })
     } catch (e) {
-      // console.log("Push error", e)
       return false;
     }
   }
@@ -55,7 +52,6 @@ class Connection {
         shellUpdates: shellUpdates
       })
     } catch (e) {
-      // console.log("Push error", e)
       return false;
     }
   }
@@ -65,16 +61,18 @@ class Connection {
       if (!this.wsconn.socket || this.wsconn.socket.readyState !== 1) {
         return [];
       }
-      const res = this.wsconn.call("pullUpdates", {
+      return this.wsconn.call("pullUpdates", {
         docName: currentState.roomName,
         version: version,
         shellVersion: shellVersion
-      }).then((updates) => updates.map(u => ({
-        changes: ChangeSet.fromJSON(u.changes), clientID: u.clientID
-      })))
-      return res;
+      }).then((updates) => {
+        return {
+          updates: updates.updates.map(u => ({
+            changes: ChangeSet.fromJSON(u.changes), clientID: u.clientID
+          })), shellUpdates: updates.shellUpdates
+        };
+      });
     } catch (e) {
-      // console.log("Pull error", e)
       return []
     }
   }
@@ -91,29 +89,27 @@ function peerExtension(startVersion, connection) {
 
     constructor(view) {
       this.view = view;
-      this.subscribed = false;
+      this.initDone = false;
       this.clientID = getClientID(this.view.state)
-      // console.log(connection)
-      const subAndPut = () => {
-        if (this.subscribed) {
+      const init = () => {
+        if (!connection.wsconn.socket || connection.wsconn.socket.readyState
+            !== 1) {
           return;
         }
-        if (!connection.wsconn.socket) {
+        if (this.initDone) {
           return;
         }
-        if (connection.wsconn.socket.readyState !== 1) {
-          return;
-        }
+        this.initDone = true;
         this.pull()
-        this.subscribed = true;
-        connection.wsconn.subscribe("newUpdates")
         connection.wsconn.on("newUpdates", () => {
           this.pull();
         })
       }
-      subAndPut()
-      connection.wsconn.once("open", subAndPut)
-      subAndPut()
+      init()
+      connection.wsconn.once("open", () => {
+        init()
+      })
+      init()
     }
 
     update(update) {
@@ -126,17 +122,17 @@ function peerExtension(startVersion, connection) {
       if (this.pushingShell) {
         return;
       }
+      this.pushingShell = true;
       if (!this.pendingShellUpdates.length) {
         return;
       }
-      this.pushingShell = true;
       const pushingCurrent = this.pendingShellUpdates.slice(0)
       let updated = false;
       try {
         updated = await connection.pushShellUpdates(this.shellVersion,
             pushingCurrent)
       } catch (e) {
-        // console.log(e)
+        console.error(e)
       }
       if (updated) {
         const updatedSize = pushingCurrent.length
@@ -156,16 +152,17 @@ function peerExtension(startVersion, connection) {
       if (this.pushing) {
         return;
       }
+      this.pushing = true
       let updates = sendableUpdates(this.view.state)
       if (!updates.length) {
+        this.pushing = false;
         return;
       }
-      this.pushing = true
       try {
         let version = getSyncedVersion(this.view.state)
         const updated = await connection.pushUpdates(version, updates)
       } catch (e) {
-        // console.log(e)
+        console.error(e)
       }
       this.pushing = false
       // Regardless of whether the push failed or new updates came in
@@ -219,7 +216,6 @@ function peerExtension(startVersion, connection) {
               if (shellUpdate.toID === getClientID(this.view.state)) {
 
                 const currentCode = this.view.toString()
-                console.log(currentCode)
                 ipcRenderer.send(
                     'request-compile',
                     getClientID(this.view.state),
@@ -230,14 +226,12 @@ function peerExtension(startVersion, connection) {
           }
         }
       } catch (e) {
-        // console.log("error")
-        // console.log(e)
+        console.error(e)
       }
       this.pulling = false;
     }
 
     destroy() {
-      connection.wsconn.unsubscribe("newUpdates")
     }
   })
   return [collab({startVersion}), plugin]
@@ -283,13 +277,8 @@ const getEnterState = () => {
   };
 }
 
-window
-.addEventListener('load', () => {
-  enterRoom(getEnterState())
-})
-
 const enterRoom = async ({roomName, username}) => {
-  const connection = new Connection()
+  const connection = new Connection(roomName)
   if (runShells) {
     runShells.destroy()
   }
@@ -307,17 +296,14 @@ const enterRoom = async ({roomName, username}) => {
 
   currentState = {roomName: roomName, username: username}
   roomStatus.textContent = roomName
-  console.log("Entering room " + roomName)
-
-  // console.log("OK")
-  // console.log(subscribedTerminalId)
   if (subscribedTerminalId) {
     updateSubscribed()
   }
-  // console.log(event)
-  // console.log(transactions)
-  // console.log(runShells.toJSON())
 }
+
+window.addEventListener('load', () => {
+  enterRoom(getEnterState())
+})
 
 connectionButton.addEventListener('click', () => {
   const enterState = getEnterState()
@@ -355,14 +341,9 @@ const messageHandler = (message) => {
         message.keystroke,)
   }
   // runShells.push([`oke-${provider.awareness.clientID}-${key}`])
-  // console.log("Received Message")
-  // console.log(message)
 }
 
 const updateSubscribed = () => {
-  // console.log("updating")
-  // console.log(subscribedTerminalId)
-  // console.log(subscribedSize)
   let accumulated = ""
   for (let i = subscribedSize; i < messages.length; i++) {
     accumulated += messages[i]
@@ -383,8 +364,6 @@ ipcRenderer.on("send-message", (event, target, message) => {
 
 // Subscribe to here
 ipcRenderer.on("terminal.subscribe", (event, id) => {
-  // console.log("Subscribing")
-  // console.log(id)
   subscribedTerminalId = id;
   subscribedSize = 0;
   updateSubscribed()
