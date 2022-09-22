@@ -13,23 +13,34 @@ const {EditorView, ViewPlugin, keymap} = require("@codemirror/view");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
-const {func} = require("lib0");
+const {promise} = require("lib0");
 
+let connection;
 let runShells;
 
 class Connection {
-  constructor(docName) {
-    this.wsconn = new WebSocket(`${WEBSOCKET_URL}/${docName}`, {
+  constructor(userName, docName, color, colorLight) {
+    this.userName = userName
+    this.docName = docName
+    this.color = color
+    this.colorLight = colorLight
+    this.getWsConn()
+  }
+
+  getWsConn() {
+    this.wsconn = new WebSocket(`${WEBSOCKET_URL}/${this.docName}`, {
       autoconnect: true,
       max_reconnects: 0,
+      headers: {
+        username: this.userName,
+        color: this.color,
+        colorlight: this.colorLight
+      }
     });
   }
 
   async pushUpdates(version, fullUpdates) {
     try {
-      if (!this.wsconn.socket || this.wsconn.socket.readyState !== 1) {
-        return false;
-      }
       let updates = fullUpdates.map(u => ({
         clientID: u.clientID, changes: u.changes.toJSON()
       }))
@@ -37,30 +48,29 @@ class Connection {
         docName: currentState.roomName, version: version, updates: fullUpdates
       })
     } catch (e) {
-      return false;
+      console.log(e)
+      return new Promise(resolve => {
+        resolve(false)
+      })
     }
   }
 
   async pushShellUpdates(shellVersion, shellUpdates) {
     try {
-      if (!this.wsconn.socket || this.wsconn.socket.readyState !== 1) {
-        return false;
-      }
       return this.wsconn.call("pushUpdates", {
         docName: currentState.roomName,
         shellVersion: shellVersion,
         shellUpdates: shellUpdates
       })
     } catch (e) {
-      return false;
+      return new Promise(resolve => {
+        resolve(false)
+      })
     }
   }
 
   async pullUpdates(version, shellVersion) {
     try {
-      if (!this.wsconn.socket || this.wsconn.socket.readyState !== 1) {
-        return [];
-      }
       return this.wsconn.call("pullUpdates", {
         docName: currentState.roomName,
         version: version,
@@ -73,14 +83,44 @@ class Connection {
         };
       });
     } catch (e) {
-      return []
+      console.error(e)
+      return new Promise(resolve => {
+        resolve([])
+      })
     }
+  }
+
+  async getPeers() {
+    try {
+      return this.wsconn.call("getPeers")
+    } catch (e) {
+      return new Promise(resolve => {
+        resolve([])
+      })
+    }
+  }
+
+  async sendToUser(to, channel, message) {
+    try {
+      return this.wsconn.call("sendToPrivate", channel, message)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  disconnect() {
+    this.wsconn.close()
+  }
+
+  reconnect() {
+    this.getWsConn()
+    this.plugin.goInit()
   }
 }
 
 function peerExtension(startVersion, connection) {
 
-  let plugin = ViewPlugin.fromClass(class {
+  const plugin = ViewPlugin.fromClass(class {
     pushingShell = false;
     pushing = false;
     pulling = false;
@@ -88,28 +128,38 @@ function peerExtension(startVersion, connection) {
     pendingShellUpdates = [];
 
     constructor(view) {
+      connection.plugin = this;
       this.view = view;
+      this.goInit()
+    }
+
+    goInit() {
       this.initDone = false;
-      this.clientID = getClientID(this.view.state)
-      const init = () => {
-        if (!connection.wsconn.socket || connection.wsconn.socket.readyState
-            !== 1) {
-          return;
-        }
-        if (this.initDone) {
-          return;
-        }
-        this.initDone = true;
-        this.pull()
-        connection.wsconn.on("newUpdates", () => {
-          this.pull();
-        })
-      }
-      init()
+      this.initializeDocs()
       connection.wsconn.once("open", () => {
-        init()
+        this.initializeDocs()
       })
-      init()
+      this.initializeDocs()
+    }
+
+    initializeDocs() {
+      if (!connection.wsconn.ready) {
+        return;
+      }
+      if (this.initDone) {
+        return;
+      }
+      this.initDone = true;
+      this.pull()
+      this.updatePeers()
+      connection.wsconn.on("newUpdates", () => {
+        this.pull();
+      })
+      connection.wsconn.on("newPeers", () => {
+        this.updatePeers()
+      })
+      console.log(connection.wsconn)
+      currentID = connection.wsconn.id
     }
 
     update(update) {
@@ -119,10 +169,6 @@ function peerExtension(startVersion, connection) {
     }
 
     async pushShell() {
-      if (this.pushingShell) {
-        return;
-      }
-      this.pushingShell = true;
       if (!this.pendingShellUpdates.length) {
         return;
       }
@@ -138,40 +184,30 @@ function peerExtension(startVersion, connection) {
         const updatedSize = pushingCurrent.length
         this.pendingShellUpdates.splice(0, updatedSize)
       }
-      this.pushingShell = false;
-      // Regardless of whether the push failed or new updates came in
-      // while it was running, try again if there's updates remaining
-      if (this.pendingShellUpdates.length) {
-        this.pull().then(() => {
-          this.pushShell()
-        })
-      }
     }
 
     async push() {
-      if (this.pushing) {
-        return;
-      }
-      this.pushing = true
       let updates = sendableUpdates(this.view.state)
       if (!updates.length) {
-        this.pushing = false;
-        return;
+        return false;
       }
       try {
         let version = getSyncedVersion(this.view.state)
-        const updated = await connection.pushUpdates(version, updates)
+        await connection.pushUpdates(version, updates)
+        console.log(version)
       } catch (e) {
         console.error(e)
       }
-      this.pushing = false
       // Regardless of whether the push failed or new updates came in
       // while it was running, try again if there's updates remaining
       if (sendableUpdates(this.view.state).length) {
-        this.pull().then(() => {
+        this.pull()
+        setTimeout(100, () => {
           this.push()
         })
+        return false;
       }
+      return true;
     }
 
     async pull() {
@@ -182,6 +218,7 @@ function peerExtension(startVersion, connection) {
       try {
         let version = getSyncedVersion(this.view.state)
         let updates = await connection.pullUpdates(version, this.shellVersion)
+        console.log(version, updates)
         this.view.dispatch(receiveUpdates(this.view.state, updates.updates))
         this.shellVersion += updates.shellUpdates.length
         for (const shellUpdate of updates.shellUpdates) {
@@ -231,7 +268,11 @@ function peerExtension(startVersion, connection) {
       this.pulling = false;
     }
 
-    destroy() {
+    async updatePeers() {
+      const ret = await connection.getPeers()
+      currentID = ret.selfid
+      peersStatus.innerHTML = (getPeersString(ret.ids)).innerHTML
+      updatePeersButton(ret.ids)
     }
   })
   return [collab({startVersion}), plugin]
@@ -259,6 +300,7 @@ let ytext;
 let currentState = {};
 let subscribedTerminalId;
 let subscribedSize;
+let currentID;
 
 const randomColor = () => {
   const randomColor = Math.floor(Math.random() * 16777215).toString(16);
@@ -278,11 +320,18 @@ const getEnterState = () => {
 }
 
 const enterRoom = async ({roomName, username}) => {
-  const connection = new Connection(roomName)
+  currentState = {roomName: roomName, username: username}
+  connection = new Connection(
+      username,
+      roomName,
+      userColor.color,
+      userColor.light
+  )
+
   if (runShells) {
-    runShells.destroy()
+    runShells.clear()
   }
-  runShells = new Map()
+
   const state = EditorState.create({
     doc: "",
     extensions: [keymap.of([indentWithTab]), basicSetup, cpp(),
@@ -301,15 +350,66 @@ const enterRoom = async ({roomName, username}) => {
   }
 }
 
+const getPeersString = (peers) => {
+  const ret = document.createElement("ul")
+  for (const [key, val] of Object.entries(peers)) {
+    const cur = document.createElement("li");
+    cur.innerHTML = (`${key} - ${val.name}\n`)
+    cur.style.color = `${val.color}`
+    if (key !== currentID) {
+      const spawnOtherPeerButton = document.createElement("button")
+      spawnOtherPeerButton.classList = "btn btn-warning btn-sm"
+      spawnOtherPeerButton.id = `spawn-${key}`
+      spawnOtherPeerButton.textContent = "Request Run"
+      cur.append(spawnOtherPeerButton)
+    }
+    ret.appendChild(cur)
+  }
+  return ret;
+}
+
+const updatePeersButton = (peers) => {
+  for (const [key, _] of Object.entries(peers)) {
+    if (key === currentID) {
+      return
+    }
+    const el = document.getElementById(`spawn-${key}`)
+    el.addEventListener("click", () => {
+      connection.sendToUser(key, "shell.request")
+    })
+  }
+}
+
 window.addEventListener('load', () => {
   enterRoom(getEnterState())
 })
 
 connectionButton.addEventListener('click', () => {
-  const enterState = getEnterState()
-  if (enterState !== currentState) {
-    codeMirrorView.destroy()
-    enterRoom(enterState)
+  if (connection.wsconn.socket) {
+    connection.disconnect()
+    connectionButton.textContent = 'Connect'
+    connectionButton.classList.replace("btn-danger", "btn-success")
+    connectionStatus.textContent = "Offline"
+    connectionStatus.classList.remove('online')
+    connectionStatus.classList.add('offline')
+    peersStatus.innerHTML = ""
+    shellsContainer.innerHTML = ""
+  } else {
+    const enterState = getEnterState()
+    if (JSON.stringify(enterState) !== JSON.stringify(currentState)) {
+      console.log("Disgrace")
+      connection = null
+      codeMirrorView.destroy()
+      enterRoom(enterState)
+    } else {
+      connection.reconnect()
+      codeMirrorView.plugins
+    }
+    connectionStatus.textContent = "Online"
+    connectionStatus.classList.remove('offline')
+    connectionStatus.classList.add('online')
+    connectionButton.textContent = 'Disconnect'
+    connectionButton.classList.replace("btn-success", "btn-danger")
   }
 })
 
