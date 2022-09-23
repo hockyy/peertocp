@@ -9,6 +9,8 @@ There will be 4 versions of this app:
   - CRDT y-map for shell sharing ✅
 - Client-Server 
   - [Own Websocket Server](https://github.com/hockyy/peertocp-server) ✅
+     - Memakai [RPC-websockets](https://www.npmjs.com/package/rpc-websockets)
+     - Library untuk semacam JSON-rpc (mirip rest api/ google rpc yang ada async awaitnya), tapi koneksinya pakai websocket
   - [@codemirror/collab OT](https://github.com/codemirror/collab), based on [Codemirror Collab Website Example](https://github.com/codemirror/website/tree/master/site/examples/collab) for code editor ✅
   - synchronized array for shell sharing -> Challenges is on how to synchronize, tapi harus bikin cara biar
     - Tidak race condition (shell output ga ke add dua kali di server)
