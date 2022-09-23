@@ -14,6 +14,9 @@ const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
 const {promise} = require("lib0");
+const {
+  performance
+} = require('perf_hooks');
 
 let connection;
 let runShells;
@@ -24,19 +27,37 @@ class Connection {
     this.docName = docName
     this.color = color
     this.colorLight = colorLight
+    this.ping = () => {
+      try {
+        return this.wsconn.call("ping")
+      } catch (e) {
+        console.error(e)
+        return new Promise(resolve => {
+          resolve(false)
+        })
+      }
+    }
+    this.pinger = () => {
+      const start = performance.now();
+      this.ping().then(res => {
+        const dur = performance.now() - start
+        if (res) {
+          pingStatus.innerHTML = dur;
+        } else {
+          pingStatus.innerHTML = "-";
+        }
+      })
+    }
     this.getWsConn()
   }
 
   getWsConn() {
     this.wsconn = new WebSocket(`${WEBSOCKET_URL}/${this.docName}`, {
-      autoconnect: true,
-      max_reconnects: 0,
-      headers: {
-        username: this.userName,
-        color: this.color,
-        colorlight: this.colorLight
+      autoconnect: true, max_reconnects: 0, headers: {
+        username: this.userName, color: this.color, colorlight: this.colorLight
       }
     });
+    setInterval(this.pinger, 1000)
   }
 
   async pushUpdates(version, fullUpdates) {
@@ -105,15 +126,20 @@ class Connection {
       return this.wsconn.call("sendToPrivate", channel, message)
     } catch (e) {
       console.error(e)
+      return new Promise(resolve => {
+        resolve(false)
+      })
     }
   }
 
   disconnect() {
     this.wsconn.close()
+    clearInterval(this.pinger)
   }
 
   reconnect() {
     this.getWsConn()
+    clearInterval(this.pinger)
     this.plugin.goInit()
   }
 }
@@ -234,8 +260,7 @@ function peerExtension(startVersion, connection) {
             case "shell.compile":
               if (shellUpdate.toID === getClientID(this.view.state)) {
                 if (shellUpdate.append) {
-                  compileResultHandler(
-                      shellUpdate.message)
+                  compileResultHandler(shellUpdate.message)
                 } else {
                   replaceCompileHandler(shellUpdate.message)
                 }
@@ -243,22 +268,16 @@ function peerExtension(startVersion, connection) {
               break
             case "shell.keystroke":
               if (shellUpdate.toID === getClientID(this.view.state)) {
-                ipcRenderer.send(
-                    'terminal.receive-keystroke',
-                    shellUpdate.terminalId,
-                    shellUpdate.keystroke,
-                )
+                ipcRenderer.send('terminal.receive-keystroke',
+                    shellUpdate.terminalId, shellUpdate.keystroke,)
               }
               break
             case "shell.request":
               if (shellUpdate.toID === getClientID(this.view.state)) {
 
                 const currentCode = this.view.toString()
-                ipcRenderer.send(
-                    'request-compile',
-                    getClientID(this.view.state),
-                    currentCode
-                )
+                ipcRenderer.send('request-compile',
+                    getClientID(this.view.state), currentCode)
               }
               break
           }
@@ -283,6 +302,7 @@ const DEFAULT_ROOM = 'welcome-room'
 const DEFAULT_USERNAME = 'Anonymous ' + Math.floor(Math.random() * 100)
 const roomStatus = document.getElementById("room-status")
 const connectionStatus = document.getElementById("connection-status")
+const pingStatus = document.getElementById("ping-status")
 const peersStatus = document.getElementById("peers-status")
 const connectionButton = document.getElementById("connect-button")
 const roomNameInput = document.getElementById("room-name-input")
@@ -293,32 +313,32 @@ const compileResult = document.getElementById("compile-result")
 const shellsContainer = document.getElementById("shells-container")
 
 jQuery.event.special.touchstart = {
-  setup: function( _, ns, handle ){
-    if ( ns.includes("noPreventDefault") ) {
-      this.addEventListener("touchstart", handle, { passive: false });
+  setup: function (_, ns, handle) {
+    if (ns.includes("noPreventDefault")) {
+      this.addEventListener("touchstart", handle, {passive: false});
     } else {
-      this.addEventListener("touchstart", handle, { passive: true });
+      this.addEventListener("touchstart", handle, {passive: true});
     }
   }
 };
 jQuery.event.special.touchmove = {
-  setup: function( _, ns, handle ){
-    if ( ns.includes("noPreventDefault") ) {
-      this.addEventListener("touchmove", handle, { passive: false });
+  setup: function (_, ns, handle) {
+    if (ns.includes("noPreventDefault")) {
+      this.addEventListener("touchmove", handle, {passive: false});
     } else {
-      this.addEventListener("touchmove", handle, { passive: true });
+      this.addEventListener("touchmove", handle, {passive: true});
     }
   }
 };
 jQuery.event.special.wheel = {
-    setup: function( _, ns, handle ){
-        this.addEventListener("wheel", handle, { passive: true });
-    }
+  setup: function (_, ns, handle) {
+    this.addEventListener("wheel", handle, {passive: true});
+  }
 };
 jQuery.event.special.mousewheel = {
-    setup: function( _, ns, handle ){
-        this.addEventListener("mousewheel", handle, { passive: true });
-    }
+  setup: function (_, ns, handle) {
+    this.addEventListener("mousewheel", handle, {passive: true});
+  }
 };
 
 $("#sidebar").mCustomScrollbar({
@@ -351,12 +371,8 @@ const getEnterState = () => {
 
 const enterRoom = async ({roomName, username}) => {
   currentState = {roomName: roomName, username: username}
-  connection = new Connection(
-      username,
-      roomName,
-      userColor.color,
-      userColor.light
-  )
+  connection = new Connection(username, roomName, userColor.color,
+      userColor.light)
 
   if (runShells) {
     runShells.clear()
@@ -428,6 +444,7 @@ connectionButton.addEventListener('click', () => {
     const enterState = getEnterState()
     if (JSON.stringify(enterState) !== JSON.stringify(currentState)) {
       console.log("Disgrace")
+      connection.disconnect()
       connection = null
       codeMirrorView.destroy()
       enterRoom(enterState)
