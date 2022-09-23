@@ -37,12 +37,13 @@ class Connection {
         })
       }
     }
+
     this.pinger = () => {
       const start = performance.now();
       this.ping().then(res => {
         const dur = performance.now() - start
         if (res) {
-          pingStatus.innerHTML = dur;
+          pingStatus.innerHTML = dur.toFixed(2);
         } else {
           pingStatus.innerHTML = "-";
         }
@@ -123,7 +124,9 @@ class Connection {
 
   async sendToUser(to, channel, message) {
     try {
-      return this.wsconn.call("sendToPrivate", channel, message)
+      console.log("OK", to, channel, message)
+      return this.wsconn.call("sendToPrivate",
+          {to: to, channel: channel, message: message})
     } catch (e) {
       console.error(e)
       return new Promise(resolve => {
@@ -156,6 +159,17 @@ function peerExtension(startVersion, connection) {
     constructor(view) {
       connection.plugin = this;
       this.view = view;
+      connection.wsconn.on("newUpdates", () => {
+        console.log("new Updates!")
+        this.pull();
+      })
+      connection.wsconn.on("newPeers", () => {
+        this.updatePeers()
+      })
+      connection.wsconn.on("shell.request", (msg) => {
+        console.log("shell.request")
+        console.log(msg)
+      })
       this.goInit()
     }
 
@@ -179,13 +193,6 @@ function peerExtension(startVersion, connection) {
       this.pull()
       this.push()
       this.updatePeers()
-      connection.wsconn.on("newUpdates", () => {
-        this.pull();
-      })
-      connection.wsconn.on("newPeers", () => {
-        this.updatePeers()
-      })
-      console.log(connection.wsconn)
       currentID = connection.wsconn.id
     }
 
@@ -221,7 +228,6 @@ function peerExtension(startVersion, connection) {
       try {
         let version = getSyncedVersion(this.view.state)
         await connection.pushUpdates(version, updates)
-        console.log(version)
       } catch (e) {
         console.error(e)
       }
@@ -312,34 +318,34 @@ const compileFlagInput = document.getElementById("compile-flag")
 const compileResult = document.getElementById("compile-result")
 const shellsContainer = document.getElementById("shells-container")
 
-jQuery.event.special.touchstart = {
-  setup: function (_, ns, handle) {
-    if (ns.includes("noPreventDefault")) {
-      this.addEventListener("touchstart", handle, {passive: false});
-    } else {
-      this.addEventListener("touchstart", handle, {passive: true});
-    }
-  }
-};
-jQuery.event.special.touchmove = {
-  setup: function (_, ns, handle) {
-    if (ns.includes("noPreventDefault")) {
-      this.addEventListener("touchmove", handle, {passive: false});
-    } else {
-      this.addEventListener("touchmove", handle, {passive: true});
-    }
-  }
-};
-jQuery.event.special.wheel = {
-  setup: function (_, ns, handle) {
-    this.addEventListener("wheel", handle, {passive: true});
-  }
-};
-jQuery.event.special.mousewheel = {
-  setup: function (_, ns, handle) {
-    this.addEventListener("mousewheel", handle, {passive: true});
-  }
-};
+// jQuery.event.special.touchstart = {
+//   setup: function (_, ns, handle) {
+//     if (ns.includes("noPreventDefault")) {
+//       this.addEventListener("touchstart", handle, {passive: false});
+//     } else {
+//       this.addEventListener("touchstart", handle, {passive: true});
+//     }
+//   }
+// };
+// jQuery.event.special.touchmove = {
+//   setup: function (_, ns, handle) {
+//     if (ns.includes("noPreventDefault")) {
+//       this.addEventListener("touchmove", handle, {passive: false});
+//     } else {
+//       this.addEventListener("touchmove", handle, {passive: true});
+//     }
+//   }
+// };
+// jQuery.event.special.wheel = {
+//   setup: function (_, ns, handle) {
+//     this.addEventListener("wheel", handle, {passive: true});
+//   }
+// };
+// jQuery.event.special.mousewheel = {
+//   setup: function (_, ns, handle) {
+//     this.addEventListener("mousewheel", handle, {passive: true});
+//   }
+// };
 
 $("#sidebar").mCustomScrollbar({
   theme: "dark", axis: "y", alwaysShowScrollbar: 2, scrollInertia: 200
@@ -416,12 +422,12 @@ const getPeersString = (peers) => {
 
 const updatePeersButton = (peers) => {
   for (const [key, _] of Object.entries(peers)) {
-    if (key === currentID) {
-      return
-    }
+    if (key === currentID) continue;
     const el = document.getElementById(`spawn-${key}`)
     el.addEventListener("click", () => {
-      connection.sendToUser(key, "shell.request")
+      connection.sendToUser(key, "shell.request").then((e) => {
+        console.log("result", e)
+      })
     })
   }
 }
@@ -443,7 +449,6 @@ connectionButton.addEventListener('click', () => {
   } else {
     const enterState = getEnterState()
     if (JSON.stringify(enterState) !== JSON.stringify(currentState)) {
-      console.log("Disgrace")
       connection.disconnect()
       connection = null
       codeMirrorView.destroy()
