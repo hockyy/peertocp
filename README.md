@@ -10,7 +10,9 @@ There will be 4 versions of this app:
 - Client-Server 
   - [Own Websocket Server](https://github.com/hockyy/peertocp-server) ✅
   - [@codemirror/collab OT](https://github.com/codemirror/collab), based on [Codemirror Collab Website Example](https://github.com/codemirror/website/tree/master/site/examples/collab) for code editor ✅
-  - centralized array for shell sharing
+  - synchronized array for shell sharing -> Challenges is on how to synchronize, tapi harus bikin cara biar
+    - Tidak race condition (shell output ga ke add dua kali di server)
+    - Tidak polling (Tidak polling terus terusan untuk mengecek update)
 - Client-Server
   - modified y-websocket
   - CRDT y-text for code editor ✅
