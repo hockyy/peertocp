@@ -209,17 +209,20 @@ function peerExtension(startVersion, connection) {
       if (!this.pendingShellUpdates.length) {
         return;
       }
-      const pushingCurrent = this.pendingShellUpdates.slice(0)
-      let updated = false;
-      try {
-        updated = await connection.pushShellUpdates(this.shellVersion,
-            pushingCurrent)
-      } catch (e) {
-        console.error(e)
+      for (let i = 0; i < this.pendingShellUpdates.length; i++) {
+        const current = this.pendingShellUpdates[i];
+        if (!runShells.get(current.uuid)[current.index].updated) {
+          this.pendingShellUpdates.splice(i)
+          break;
+        }
       }
-      if (updated) {
-        const updatedSize = pushingCurrent.length
-        this.pendingShellUpdates.splice(0, updatedSize)
+      const pushingCurrent = this.pendingShellUpdates.slice(0)
+      await connection.pushShellUpdates(this.shellVersion, pushingCurrent);
+      if (this.pendingShellUpdates.length) {
+        this.pull()
+        setTimeout(100, () => {
+          this.pushShell()
+        })
       }
     }
 
@@ -259,12 +262,24 @@ function peerExtension(startVersion, connection) {
         this.shellVersion += updates.shellUpdates.length
         for (const shellUpdate of updates.shellUpdates) {
           switch (shellUpdate.type) {
-            case "shell.spawn":
-              runShells.set(shellUpdate.shellID, [])
+            case "spawn":
+              runnerShells.set(shellUpdate.uuid, shellUpdate.spawner)
+              if (!runShells.has(shellUpdate.uuid)) {
+                runShells.set(shellUpdate.uuid, [])
+              }
               break
-            case "shell.info":
-              const currentShell = runShells.get(shellUpdate.shellID);
-              currentShell.push(shellUpdate.message)
+            case "info":
+              const currentShell = runShells.get(shellUpdate.uuid);
+              while (shellUpdate.index >= currentShell.length) {
+                shellUpdate.push({
+                  data: "",
+                  updated: false
+                })
+              }
+              currentShell[shellUpdate.index] = {
+                data: shellUpdate.data,
+                updated: true
+              }
               break
           }
         }
@@ -363,6 +378,9 @@ const enterRoom = async ({roomName, username}) => {
   if (runShells) {
     runShells.clear()
   }
+
+  runShells = new Map()
+  runnerShells = new Map()
 
   const state = EditorState.create({
     doc: "",
@@ -536,10 +554,26 @@ ipcRenderer.on("terminal.uuid", (event, uuid) => {
   runnerShells.set(uuid, currentState)
   runShells.set(uuid, [])
   console.log(uuid)
+  pendingShellUpdates.push({
+    spawner: currentID,
+    data: data,
+    updated: false
+  })
 })
 
 // Updates terminal
 ipcRenderer.on('terminal.update', (event, uuid, data) => {
+  console.log(uuid, data)
   const history = runShells.get(uuid);
-  history.push(data)
+  history.push({
+    type: "spawn",
+    data: data,
+    updated: false
+  })
+  pendingShellUpdates.push({
+    type: "info",
+    data: data,
+    index: history.length - 1,
+    uuid: uuid
+  })
 })
