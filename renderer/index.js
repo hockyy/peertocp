@@ -5,7 +5,7 @@ const {ipcRenderer} = require('electron');
 const {
   receiveUpdates, sendableUpdates, collab, getSyncedVersion, getClientID
 } = require("@codemirror/collab");
-const WEBSOCKET_URL = "ws://103.167.137.77:4443";
+const WEBSOCKET_URL = "ws://localhost:4443";
 const WebSocket = require('rpc-websockets').Client
 const {basicSetup} = require("codemirror");
 const {ChangeSet, EditorState, Text} = require("@codemirror/state");
@@ -17,9 +17,12 @@ const {promise} = require("lib0");
 const {
   performance
 } = require('perf_hooks');
+const {replace} = require("lib0/list");
 
 let connection;
 let runShells;
+let runnerShells;
+let messages;
 
 class Connection {
   constructor(userName, docName, color, colorLight) {
@@ -70,7 +73,7 @@ class Connection {
         docName: currentState.roomName, version: version, updates: fullUpdates
       })
     } catch (e) {
-      console.log(e)
+      console.error(e)
       return new Promise(resolve => {
         resolve(false)
       })
@@ -124,7 +127,7 @@ class Connection {
 
   async sendToUser(to, channel, message) {
     try {
-      console.log("OK", to, channel, message)
+      console.debug("OK Sending", to, channel, message)
       return this.wsconn.call("sendToPrivate",
           {to: to, channel: channel, message: message})
     } catch (e) {
@@ -166,9 +169,9 @@ function peerExtension(startVersion, connection) {
       connection.wsconn.on("newPeers", () => {
         this.updatePeers()
       })
-      connection.wsconn.on("shell.request", (msg) => {
-        console.log("shell.request")
-        console.log(msg)
+      connection.wsconn.on("custom.message", (message) => {
+        console.log("receive custom message", message)
+        messageHandler(message)
       })
       this.goInit()
     }
@@ -262,29 +265,6 @@ function peerExtension(startVersion, connection) {
             case "shell.info":
               const currentShell = runShells.get(shellUpdate.shellID);
               currentShell.push(shellUpdate.message)
-              break
-            case "shell.compile":
-              if (shellUpdate.toID === getClientID(this.view.state)) {
-                if (shellUpdate.append) {
-                  compileResultHandler(shellUpdate.message)
-                } else {
-                  replaceCompileHandler(shellUpdate.message)
-                }
-              }
-              break
-            case "shell.keystroke":
-              if (shellUpdate.toID === getClientID(this.view.state)) {
-                ipcRenderer.send('terminal.receive-keystroke',
-                    shellUpdate.terminalId, shellUpdate.keystroke,)
-              }
-              break
-            case "shell.request":
-              if (shellUpdate.toID === getClientID(this.view.state)) {
-
-                const currentCode = this.view.toString()
-                ipcRenderer.send('request-compile',
-                    getClientID(this.view.state), currentCode)
-              }
               break
           }
         }
@@ -422,12 +402,16 @@ const getPeersString = (peers) => {
 
 const updatePeersButton = (peers) => {
   for (const [key, _] of Object.entries(peers)) {
-    if (key === currentID) continue;
+    if (key === currentID) {
+      continue;
+    }
     const el = document.getElementById(`spawn-${key}`)
     el.addEventListener("click", () => {
-      connection.sendToUser(key, "shell.request").then((e) => {
-        console.log("result", e)
-      })
+      connection.sendToUser(key, "custom.message",
+          JSON.stringify({
+            type: "compile.request",
+            source: currentID
+          }))
     })
   }
 }
@@ -466,10 +450,15 @@ connectionButton.addEventListener('click', () => {
 })
 
 spawnButton.addEventListener("click", () => {
-
+  const code = codeMirrorView.state.doc.toString()
+  ipcRenderer.send(
+      'compile.request',
+      currentID,
+      code
+  )
 })
 
-const compileResultHandler = (data) => {
+const appendCompileHandler = (data) => {
   let tmpHtml = termToHtml.strings(data, termToHtml.themes.light.name)
   tmpHtml = /<pre[^>]*>((.|[\n\r])*)<\/pre>/im.exec(tmpHtml)[1];
   compileResult.innerHTML += tmpHtml
@@ -479,38 +468,54 @@ const replaceCompileHandler = (data) => {
   compileResult.innerHTML = data
 }
 
-const messageHandler = (message) => {
-  message = JSON.parse(message)
-  if (message.type === "request") {
-    let code = ytext.toString()
-    ipcRenderer.send('request-compile', message.source, code)
-  } else if (message.type === "compile-result") {
-    compileResultHandler(message.message)
-  } else if (message.type === "replace-compile") {
-    replaceCompileHandler(message.message)
-  } else if (message.type === "keystroke") {
-    ipcRenderer.send('terminal.receive-keystroke', message.terminalId,
-        message.keystroke,)
-  }
-  // runShells.push([`oke-${provider.awareness.clientID}-${key}`])
-}
-
 const updateSubscribed = () => {
   let accumulated = ""
   for (let i = subscribedSize; i < messages.length; i++) {
     accumulated += messages[i]
   }
-  ipcRenderer.send('terminal.send-subscribed', accumulated,
+  ipcRenderer.send('terminal.message.receive', accumulated,
       subscribedSize === 0)
   subscribedSize = messages.length
 }
 
+const messageHandler = (message) => {
+  message = JSON.parse(message)
+  switch (message.type) {
+    case "compile.replace":
+      replaceCompileHandler(message.message)
+      break
+    case "compile.append":
+      appendCompileHandler(message.message)
+      break
+    case "compile.request":
+      const code = (codeMirrorView.state.doc.toString())
+      ipcRenderer.send(
+          'compile.request',
+          message.source,
+          code)
+      break
+    case "shell.keystroke":
+      ipcRenderer.send(
+          'shell.keystroke',
+          message.terminalId,
+          message.keystroke,
+      )
+      break
+  }
+}
+
 // Send a certain message to a target user-client-id
-ipcRenderer.on("send-message", (event, target, message) => {
+ipcRenderer.on("message.send", (event, target, message) => {
   if (target === "active-terminal") {
     target = runnerShells.get(subscribedTerminalId)
     message.terminalId = subscribedTerminalId
     message = JSON.stringify(message)
+  }
+  console.log("Tryna send", target, message)
+  if (target === currentID) {
+    messageHandler(message)
+  } else {
+    connection.sendToUser(target, "custom.message", message)
   }
 })
 
@@ -528,8 +533,13 @@ ipcRenderer.on("terminal.unsubscribe", (event, id) => {
 
 // Set Up UUID after compile, meaning a shell is ready to be used
 ipcRenderer.on("terminal.uuid", (event, uuid) => {
+  runnerShells.set(uuid, currentState)
+  runShells.set(uuid, [])
+  console.log(uuid)
 })
 
 // Updates terminal
 ipcRenderer.on('terminal.update', (event, uuid, data) => {
+  const history = runShells.get(uuid);
+  history.push(data)
 })
