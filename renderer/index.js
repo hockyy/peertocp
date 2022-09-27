@@ -454,6 +454,10 @@ let subscribedTerminalId;
 let subscribedSize;
 let currentID;
 
+/**
+ * Generate random color
+ * @returns {{color: string, light: string}}
+ */
 const randomColor = () => {
   const randomColor = Math.floor(Math.random() * 16777215).toString(16);
   const color = "#" + randomColor;
