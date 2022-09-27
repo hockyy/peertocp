@@ -19,15 +19,15 @@
     "@electron-forge/maker-rpm": "^6.0.0-beta.65",
     "@electron-forge/maker-squirrel": "^6.0.0-beta.65",
     "@electron-forge/maker-zip": "^6.0.0-beta.65",
-    "electron": "^19.0.17",
+    "electron": "^19.1.0",
     "npm-update-git-deps": "^1.7.0"
   },
   "dependencies": {
     "@codemirror/collab": "^6.0.0",
     "@codemirror/commands": "^6.1.0",
     "@codemirror/lang-cpp": "^6.0.1",
-    "@codemirror/state": "^6.1.1",
-    "@codemirror/view": "^6.2.4",
+    "@codemirror/state": "^6.1.2",
+    "@codemirror/view": "^6.2.5",
     "bootstrap": "^5.2.1",
     "codemirror": "^6.0.1",
     "electron-rebuild": "^3.2.9",

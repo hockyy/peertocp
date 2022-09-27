@@ -555,7 +555,7 @@ connectionButton.addEventListener('click', () => {
     shellsContainer.innerHTML = ""
   } else {
     const enterState = getEnterState()
-    if (JSON.stringify(enterState) !== JSON.stringify(currentState)) {
+    if (enterState.roomName !== currentState.roomName) {
       connection.disconnect()
       connection = null
       codemirrorView.destroy()
