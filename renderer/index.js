@@ -213,9 +213,18 @@ function peerExtension(startVersion = 0, connection) {
   const plugin = ViewPlugin.fromClass(class {
     pulling = false;
     shellVersion = 0;
+
     constructor(view) {
       connection.plugin = this;
       this.view = view;
+      this.goInit()
+    }
+
+    /**
+     * this makes sure initialization is done within readiness of the socket
+     */
+    goInit() {
+      this.initDone = false;
       connection.wsconn.on("newUpdates", () => {
         this.pull();
       })
@@ -225,14 +234,6 @@ function peerExtension(startVersion = 0, connection) {
       connection.wsconn.on("custom.message", (message) => {
         messageHandler(message)
       })
-      this.goInit()
-    }
-
-    /**
-     * this makes sure initialization is done within readiness of the socket
-     */
-    goInit() {
-      this.initDone = false;
       this.initializeDocs()
       connection.wsconn.once("open", () => {
         this.initializeDocs()

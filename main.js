@@ -49,7 +49,6 @@ const runFile = (compileResultfile, id) => {
 }
 
 const compileHandler = (event, source, code) => {
-  console.log(event, source, code)
   const p2cpdir = path.join(process.env.HOME, 'p2cp')
   const codefile = path.join(p2cpdir, 'code.cpp')
   const compileResultfile = path.join(p2cpdir, 'code')
@@ -66,7 +65,6 @@ const compileHandler = (event, source, code) => {
     }
   })
   const sendBack = (message, isReplace = false) => {
-    console.log(message)
     mainWindow.webContents.send("message.send", source, JSON.stringify({
       type: isReplace ? "compile.replace" : "compile.append", message: message
     }))
@@ -78,7 +76,6 @@ const compileHandler = (event, source, code) => {
     sendBack(data)
   })
   compileProcess.onExit(data => {
-    // console.log("Exited")
     sendBack(`Exited with code ${data.exitCode}`)
     if (data.exitCode === 0) {
       const uuid = crypto.randomUUID()
