@@ -126,15 +126,12 @@ const enterRoom = ({roomName, username}, newDoc = true) => {
   roomStatus.textContent = roomName
   if (newDoc) {
     ydoc = new yjs.Doc()
-  } else {
-    ydoc.clientID = random.uint32()
   }
-  console.log(ydoc)
   provider = new WebrtcProvider(roomName, ydoc, {
     signaling: [SIGNALLING_SERVER_URL],
     filterBcConns: false
   })
-  currentID = provider.awareness.clientID;
+  currentID = ydoc.clientID;
   provider.awareness.setLocalStateField('user', {
     name: username, color: userColor.color, colorLight: userColor.light
   })
@@ -170,6 +167,8 @@ connectionButton.addEventListener('click', () => {
   if (provider) {
     provider.disconnect()
     provider.destroy()
+    ydoc.clientID = random.uint32()
+    currentID = ydoc.clientID
     oldprovider = provider
     provider = null
     connectionButton.textContent = 'Connect'
@@ -181,7 +180,7 @@ connectionButton.addEventListener('click', () => {
   } else {
     const enterState = getEnterState()
     codemirrorView.destroy()
-    if (JSON.stringify(enterState) !== JSON.stringify(currentState)) {
+    if (enterState.roomName !== currentState.roomName) {
       enterRoom(enterState)
     } else {
       enterRoom(enterState, false)
@@ -256,7 +255,6 @@ ipcRenderer.on("message.send", (event, target, message) => {
     message.terminalId = subscribedTerminalId
     message = JSON.stringify(message)
   }
-  console.log(message)
   if (target === currentID) {
     messageHandler(message)
   } else {
