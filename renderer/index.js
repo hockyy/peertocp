@@ -100,7 +100,7 @@ const updatePeersButton = (peers) => {
         type: 'request',
         source: currentID
       })
-      provider.room.sendToUser(key, message)
+      provider.sendToUser(key, message)
     })
   })
 }
@@ -257,7 +257,7 @@ ipcRenderer.on("message.send", (event, target, message) => {
   if (target === currentID) {
     messageHandler(message)
   } else {
-    provider.room.sendToUser(target, message)
+    provider.sendToUser(target, message)
   }
 })
 
