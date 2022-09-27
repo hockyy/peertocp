@@ -17,22 +17,25 @@ const {promise} = require("lib0");
 const {
   performance
 } = require('perf_hooks');
-const {replace} = require("lib0/list");
-const {splice} = require("lib0/string");
 
 let connection;
 let runShells;
 let runnerShells;
-let messages;
-let plugin;
 let pendingShellUpdates;
 
+/**
+ * Connection is a class representing a connection to a server
+ */
 class Connection {
   constructor(userName, docName, color, colorLight) {
     this.userName = userName
     this.docName = docName
     this.color = color
     this.colorLight = colorLight
+    /**
+     * Ping function
+     * @returns {Promise<Boolean>}  true if ping succeeded, false otherwise
+     */
     this.ping = () => {
       try {
         return this.wsconn.call("ping")
@@ -44,6 +47,9 @@ class Connection {
       }
     }
 
+    /**
+     * Pinger function, use to measure ping and supposed to be called for multiple
+     */
     this.pinger = () => {
       const start = performance.now();
       this.ping().then(res => {
@@ -58,20 +64,29 @@ class Connection {
     this.getWsConn()
   }
 
+  /**
+   * getWsConn regenerate ws connection and set interval pinger function
+   */
   getWsConn() {
     this.wsconn = new WebSocket(`${WEBSOCKET_URL}/${this.docName}`, {
       autoconnect: true, max_reconnects: 0, headers: {
         username: this.userName, color: this.color, colorlight: this.colorLight
       }
     });
-    setInterval(this.pinger, 1000)
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval)
+    }
+    this.pingInterval = setInterval(this.pinger, 1000)
   }
 
+  /**
+   * Push update
+   * @param version try to update text with this local current version
+   * @param fullUpdates the full update operation from the beginning till now
+   * @returns {Promise<Boolean>} true if succeed
+   */
   async pushUpdates(version, fullUpdates) {
     try {
-      let updates = fullUpdates.map(u => ({
-        clientID: u.clientID, changes: u.changes.toJSON()
-      }))
       return this.wsconn.call("pushUpdates", {
         docName: currentState.roomName, version: version, updates: fullUpdates
       })
@@ -83,6 +98,12 @@ class Connection {
     }
   }
 
+  /**
+   * Push shell updates
+   * @param shellVersion try to update shell with this local current version
+   * @param shellUpdates the update that haven't been synced with the server only
+   * @returns {Promise<Boolean>} true if succeed
+   */
   async pushShellUpdates(shellVersion, shellUpdates) {
     try {
       return this.wsconn.call("pushShellUpdates", {
@@ -97,6 +118,13 @@ class Connection {
     }
   }
 
+  /**
+   * Pull all updates, including shell and text
+   * @param version version of text
+   * @param shellVersion version of shell
+   * @returns {Promise<{updates: [], shellUpdates: []}>} returns updates and
+   * shellUpdates from the current version
+   */
   async pullUpdates(version, shellVersion) {
     try {
       return this.wsconn.call("pullUpdates", {
@@ -113,24 +141,35 @@ class Connection {
     } catch (e) {
       console.error(e)
       return new Promise(resolve => {
-        resolve([])
+        resolve({updates: [], shellUpdates: []})
       })
     }
   }
 
+  /**
+   * Get list of peers in the current network namespace
+   * @returns {Promise<{selfid, ids:[]}>} promise return array of peers in this
+   * namespace and its own id
+   */
   async getPeers() {
     try {
       return this.wsconn.call("getPeers")
     } catch (e) {
       return new Promise(resolve => {
-        resolve([])
+        resolve({selfid: "", ids: []})
       })
     }
   }
 
+  /**
+   * Send a message involving only two peers
+   * @param to target id in the current namespace
+   * @param channel receiving channel
+   * @param message the message trying to be sent
+   * @returns {Promise<Boolean>} true if succeed in sending
+   */
   async sendToUser(to, channel, message) {
     try {
-      console.debug("OK Sending", to, channel, message)
       return this.wsconn.call("sendToPrivate",
           {to: to, channel: channel, message: message})
     } catch (e) {
@@ -141,26 +180,39 @@ class Connection {
     }
   }
 
+  /**
+   * Disconnect current connection, will clear ping interval as well
+   */
   disconnect() {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval)
+    }
     this.wsconn.close()
-    clearInterval(this.pinger)
   }
 
+  /**
+   * Reconnect to the current namespace, with the same plugin interface
+   * will initilize new connection
+   */
   reconnect() {
     this.getWsConn()
-    clearInterval(this.pinger)
     this.plugin.goInit()
   }
 }
 
-function peerExtension(startVersion, connection) {
+/**
+ * Returns
+ * @param startVersion the starting version, default to 0
+ * @param connection socket connection to the server
+ * @returns {({extension: Extension}|
+ * readonly Extension[]|
+ * ViewPlugin<{update(*): void}>)[]}
+ */
+function peerExtension(startVersion = 0, connection) {
 
   const plugin = ViewPlugin.fromClass(class {
-    pushingShell = false;
-    pushing = false;
     pulling = false;
     shellVersion = 0;
-
     constructor(view) {
       connection.plugin = this;
       this.view = view;
@@ -176,6 +228,9 @@ function peerExtension(startVersion, connection) {
       this.goInit()
     }
 
+    /**
+     * this makes sure initialization is done within readiness of the socket
+     */
     goInit() {
       this.initDone = false;
       this.initializeDocs()
@@ -185,6 +240,9 @@ function peerExtension(startVersion, connection) {
       this.initializeDocs()
     }
 
+    /**
+     * Initialization of the docs
+     */
     initializeDocs() {
       if (!connection.wsconn.ready) {
         return;
@@ -199,12 +257,19 @@ function peerExtension(startVersion, connection) {
       currentID = connection.wsconn.id
     }
 
+    /**
+     * Will be called by CodemirrorView when doc has changed
+     * @param update update event
+     */
     update(update) {
       if (update.docChanged) {
         this.push()
       }
     }
 
+    /**
+     * Push shell
+     */
     async pushShell() {
       if (!pendingShellUpdates.length) {
         return;
@@ -232,10 +297,13 @@ function peerExtension(startVersion, connection) {
             }, 100)
           }
         })
-
       }
     }
 
+    /**
+     * Push text data
+     * @returns {boolean} true if update succeeded
+     */
     async push() {
       let updates = sendableUpdates(this.view.state)
       if (!updates.length) {
@@ -262,6 +330,9 @@ function peerExtension(startVersion, connection) {
       return true;
     }
 
+    /**
+     * Pull update function, uses semaphore to avoid race conditions
+     */
     async pull() {
       if (this.pulling) {
         return;
@@ -317,6 +388,9 @@ function peerExtension(startVersion, connection) {
       this.pulling = false;
     }
 
+    /**
+     * Update peers
+     */
     async updatePeers() {
       const ret = await connection.getPeers()
       currentID = ret.selfid
@@ -374,8 +448,7 @@ $("#sidebar").mCustomScrollbar({
   theme: "dark", axis: "y", alwaysShowScrollbar: 2, scrollInertia: 200
 });
 
-let codeMirrorView;
-let ytext;
+let codemirrorView;
 let currentState = {};
 let subscribedTerminalId;
 let subscribedSize;
@@ -417,7 +490,7 @@ const enterRoom = async ({roomName, username}) => {
       peerExtension(0, connection)]
   })
 
-  codeMirrorView = new EditorView({
+  codemirrorView = new EditorView({
     state,
     parent: /** @type {HTMLElement} */ (document.querySelector('#editor'))
   })
@@ -480,7 +553,7 @@ connectionButton.addEventListener('click', () => {
     if (JSON.stringify(enterState) !== JSON.stringify(currentState)) {
       connection.disconnect()
       connection = null
-      codeMirrorView.destroy()
+      codemirrorView.destroy()
       enterRoom(enterState)
     } else {
       connection.reconnect()
@@ -494,7 +567,7 @@ connectionButton.addEventListener('click', () => {
 })
 
 spawnButton.addEventListener("click", () => {
-  const code = codeMirrorView.state.doc.toString()
+  const code = codemirrorView.state.doc.toString()
   ipcRenderer.send('compile.request', currentID, code)
 })
 
@@ -529,7 +602,7 @@ const messageHandler = (message) => {
       appendCompileHandler(message.message)
       break
     case "compile.request":
-      const code = (codeMirrorView.state.doc.toString())
+      const code = (codemirrorView.state.doc.toString())
       ipcRenderer.send('compile.request', message.source, code)
       break
     case "shell.keystroke":
