@@ -84,7 +84,6 @@ class Connection {
   }
 
   async pushShellUpdates(shellVersion, shellUpdates) {
-    console.log("Last", shellUpdates)
     try {
       return this.wsconn.call("pushShellUpdates", {
         docName: currentState.roomName,
@@ -166,14 +165,12 @@ function peerExtension(startVersion, connection) {
       connection.plugin = this;
       this.view = view;
       connection.wsconn.on("newUpdates", () => {
-        console.log("new Updates!")
         this.pull();
       })
       connection.wsconn.on("newPeers", () => {
         this.updatePeers()
       })
       connection.wsconn.on("custom.message", (message) => {
-        console.log("receive custom message", message)
         messageHandler(message)
       })
       this.goInit()
@@ -212,11 +209,9 @@ function peerExtension(startVersion, connection) {
       if (!pendingShellUpdates.length) {
         return;
       }
-      console.log(pendingShellUpdates)
       let spliceCount = 0;
       for (; spliceCount < pendingShellUpdates.length; spliceCount++) {
         const current = pendingShellUpdates[spliceCount];
-        console.log("Splicing", spliceCount)
         if (current.type === "info" && !runShells.get(
             current.uuid)[current.index].updated) {
           break;
@@ -228,14 +223,11 @@ function peerExtension(startVersion, connection) {
       }
       pendingShellUpdates.splice(0, spliceCount)
       const pushingCurrent = pendingShellUpdates.slice(0)
-      console.log("Masih ", pushingCurrent)
       await connection.pushShellUpdates(this.shellVersion, pushingCurrent);
-      console.log("SISA ", pendingShellUpdates.length)
       if (pendingShellUpdates.length) {
         this.pull().then(() => {
           if (connection.wsconn.ready) {
             setTimeout(() => {
-              console.log("jalan")
               this.pushShell()
             }, 100)
           }
@@ -303,9 +295,7 @@ function peerExtension(startVersion, connection) {
               break
           }
         }
-        console.log(updates.shellUpdates)
         if (updates.shellUpdates.length) {
-          console.log("Updating html")
           shellsContainer.innerHTML = ""
           runShells.forEach((val, key) => {
             const ret = document.createElement("button")
@@ -314,12 +304,9 @@ function peerExtension(startVersion, connection) {
                 key).spawner}`
             shellsContainer.appendChild(ret)
             ret.addEventListener('click', () => {
-              // console.log(key)
               ipcRenderer.send('terminal.window.add', key);
             })
           })
-          // console.log("OK")
-          // console.log(subscribedTerminalId)
           if (subscribedTerminalId) {
             updateSubscribed()
           }
@@ -522,9 +509,7 @@ const replaceCompileHandler = (data) => {
 }
 
 const updateSubscribed = () => {
-  console.log(runShells, subscribedTerminalId)
   const messages = runShells.get(subscribedTerminalId)
-  console.log(messages)
   let accumulated = ""
   for (let i = subscribedSize; i < messages.length; i++) {
     accumulated += messages[i].data
@@ -557,12 +542,10 @@ const messageHandler = (message) => {
 // Send a certain message to a target user-client-id
 ipcRenderer.on("message.send", (event, target, message) => {
   if (target === "active-terminal") {
-    console.log(runnerShells.get(subscribedTerminalId))
     target = runnerShells.get(subscribedTerminalId).spawner
     message.terminalId = subscribedTerminalId
     message = JSON.stringify(message)
   }
-  console.log("Tryna send", target, message)
   if (target === currentID) {
     messageHandler(message)
   } else {
@@ -572,7 +555,6 @@ ipcRenderer.on("message.send", (event, target, message) => {
 
 // Subscribe to here
 ipcRenderer.on("terminal.subscribe", (event, id) => {
-  console.log("subscribe", id)
   subscribedTerminalId = id;
   subscribedSize = 0;
   updateSubscribed()
@@ -590,7 +572,6 @@ ipcRenderer.on("terminal.uuid", (event, uuid, data) => {
     spawner: currentID, updated: false
   })
   runShells.set(uuid, [])
-  console.log(uuid)
   pendingShellUpdates.push({
     type: "spawn", spawner: currentID, uuid: uuid
   })
@@ -599,13 +580,11 @@ ipcRenderer.on("terminal.uuid", (event, uuid, data) => {
 
 // Updates terminal
 ipcRenderer.on('terminal.update', (event, uuid, data) => {
-  console.log(uuid, data)
   const history = runShells.get(uuid);
   for (const line of data) {
     history.push({
       data: line, updated: false
     })
-    console.log("line", line)
     pendingShellUpdates.push({
       type: "info", data: line, index: history.length - 1, uuid: uuid
     })
