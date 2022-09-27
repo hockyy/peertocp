@@ -269,6 +269,7 @@ function peerExtension(startVersion = 0, connection) {
         return;
       }
       this.initDone = true;
+      updateShells()
       this.pull()
       this.push()
       this.pushShell()
@@ -560,7 +561,6 @@ connectionButton.addEventListener('click', () => {
   } else {
     const enterState = getEnterState()
     if (enterState.roomName !== currentState.roomName) {
-      connection.disconnect()
       connection = null
       codemirrorView.destroy()
       enterRoom(enterState)
