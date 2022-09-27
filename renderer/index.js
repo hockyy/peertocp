@@ -200,6 +200,23 @@ class Connection {
   }
 }
 
+const updateShells = () => {
+  shellsContainer.innerHTML = ""
+  runShells.forEach((val, key) => {
+    const ret = document.createElement("button")
+    ret.classList = "btn btn-light"
+    ret.textContent = `${key} running in ${runnerShells.get(
+        key).spawner}`
+    shellsContainer.appendChild(ret)
+    ret.addEventListener('click', () => {
+      ipcRenderer.send('terminal.window.add', key);
+    })
+  })
+  if (subscribedTerminalId) {
+    updateSubscribed()
+  }
+}
+
 /**
  * Returns
  * @param startVersion the starting version, default to 0
@@ -254,6 +271,7 @@ function peerExtension(startVersion = 0, connection) {
       this.initDone = true;
       this.pull()
       this.push()
+      this.pushShell()
       this.updatePeers()
       currentID = connection.wsconn.id
     }
@@ -368,20 +386,7 @@ function peerExtension(startVersion = 0, connection) {
           }
         }
         if (updates.shellUpdates.length) {
-          shellsContainer.innerHTML = ""
-          runShells.forEach((val, key) => {
-            const ret = document.createElement("button")
-            ret.classList = "btn btn-light"
-            ret.textContent = `${key} running in ${runnerShells.get(
-                key).spawner}`
-            shellsContainer.appendChild(ret)
-            ret.addEventListener('click', () => {
-              ipcRenderer.send('terminal.window.add', key);
-            })
-          })
-          if (subscribedTerminalId) {
-            updateSubscribed()
-          }
+          updateShells()
         }
       } catch (e) {
         console.error(e)
@@ -552,7 +557,6 @@ connectionButton.addEventListener('click', () => {
     connectionStatus.classList.remove('online')
     connectionStatus.classList.add('offline')
     peersStatus.innerHTML = ""
-    shellsContainer.innerHTML = ""
   } else {
     const enterState = getEnterState()
     if (enterState.roomName !== currentState.roomName) {
@@ -653,6 +657,7 @@ ipcRenderer.on("terminal.uuid", (event, uuid, data) => {
   pendingShellUpdates.push({
     type: "spawn", spawner: currentID, uuid: uuid
   })
+  updateShells()
   connection.plugin.pushShell()
 })
 
@@ -667,6 +672,6 @@ ipcRenderer.on('terminal.update', (event, uuid, data) => {
       type: "info", data: line, index: history.length - 1, uuid: uuid
     })
   }
-
+  updateShells()
   connection.plugin.pushShell()
 })
