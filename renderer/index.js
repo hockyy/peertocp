@@ -217,9 +217,9 @@ const messageHandler = (message) => {
         'request-compile',
         message.source,
         code)
-  } else if (message.type === "compile-result") {
+  } else if (message.type === "compile.append") {
     compileResultHandler(message.message)
-  } else if (message.type === "replace-compile") {
+  } else if (message.type === "compile.replace") {
     replaceCompileHandler(message.message)
   } else if (message.type === "keystroke") {
     ipcRenderer.send(
@@ -251,7 +251,7 @@ const updateSubscribed = () => {
 }
 
 // Send a certain message to a target user-client-id
-ipcRenderer.on("send-message", (event, target, message) => {
+ipcRenderer.on("message.send", (event, target, message) => {
   if (target === "active-terminal") {
     target = runnerShells.get(subscribedTerminalId)
     message.terminalId = subscribedTerminalId

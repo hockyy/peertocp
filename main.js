@@ -65,8 +65,8 @@ const compileHandler = (event, source, code) => {
     }
   })
   const sendBack = (message, isReplace = false) => {
-    mainWindow.webContents.send("send-message", source, JSON.stringify({
-      type: isReplace ? "replace-compile" : "compile-result", message: message
+    mainWindow.webContents.send("message.send", source, JSON.stringify({
+      type: isReplace ? "compile.replace" : "compile.append", message: message
     }))
   }
   sendBack("Compiling...\n", true)
@@ -118,7 +118,7 @@ const receiveSubscribedHandler = (event, accumulated, isFirstTime = false) => {
 
 const keystrokeHandler = (event, e) => {
   mainWindow.webContents.send(
-      "send-message",
+      "message.send",
       "active-terminal",
       {
         type: "keystroke", keystroke: e
