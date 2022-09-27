@@ -94,7 +94,6 @@ const updatePeersButton = (peers) => {
     }
     const el = document.getElementById(`spawn-${key}`)
     el.addEventListener("click", () => {
-      // console.log("OK")
       const message = JSON.stringify({
         type: 'request',
         source: provider.awareness.clientID
@@ -107,7 +106,6 @@ const updatePeersButton = (peers) => {
 const enterRoom = ({roomName, username}) => {
   currentState = {roomName: roomName, username: username}
   roomStatus.textContent = roomName
-  console.log("Entering room " + roomName)
   const ydoc = new yjs.Doc()
   provider = new WebrtcProvider(roomName, ydoc, {
     // awareness: new Awareness(),
@@ -150,18 +148,12 @@ const enterRoom = ({roomName, username}) => {
       ret.textContent = `${key} running in ${runnerShells.get(key)}`
       shellsContainer.appendChild(ret)
       ret.addEventListener('click', () => {
-        // console.log(key)
         ipcRenderer.send('terminal.window.add', key);
       })
     })
-    // console.log("OK")
-    // console.log(subscribedTerminalId)
     if (subscribedTerminalId) {
       updateSubscribed()
     }
-    // console.log(event)
-    // console.log(transactions)
-    // console.log(runShells.toJSON())
   })
 }
 
@@ -232,15 +224,9 @@ const messageHandler = (message) => {
         message.keystroke,
     )
   }
-  // runShells.push([`oke-${provider.awareness.clientID}-${key}`])
-  // console.log("Received Message")
-  // console.log(message)
 }
 
 const updateSubscribed = () => {
-  // console.log("updating")
-  // console.log(subscribedTerminalId)
-  // console.log(subscribedSize)
   const messages = runShells.get(subscribedTerminalId).toArray()
   let accumulated = ""
   for (let i = subscribedSize; i < messages.length; i++) {
@@ -261,7 +247,6 @@ ipcRenderer.on("message.send", (event, target, message) => {
     message.terminalId = subscribedTerminalId
     message = JSON.stringify(message)
   }
-  // console.log(message)
   if (target === provider.awareness.clientID) {
     messageHandler(message)
   } else {
@@ -271,8 +256,6 @@ ipcRenderer.on("message.send", (event, target, message) => {
 
 // Subscribe to here
 ipcRenderer.on("terminal.subscribe", (event, id) => {
-  // console.log("Subscribing")
-  // console.log(id)
   subscribedTerminalId = id;
   subscribedSize = 0;
   updateSubscribed()
