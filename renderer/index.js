@@ -39,6 +39,7 @@ let codemirrorView;
 let provider, oldprovider;
 let ytext;
 let runShells;
+let currentID;
 let runnerShells;
 let currentState = {};
 let subscribedTerminalId;
@@ -76,7 +77,7 @@ const getPeersString = (peers) => {
     const cur = document.createElement("li");
     cur.innerHTML = (`${key} - ${val.user.name}\n`)
     cur.style.color = `${val.user.color}`
-    if (key !== provider.awareness.clientID) {
+    if (key !== currentID) {
       const spawnOtherPeerButton = document.createElement("button")
       spawnOtherPeerButton.classList = "btn btn-warning btn-sm"
       spawnOtherPeerButton.id = `spawn-${key}`
@@ -90,18 +91,34 @@ const getPeersString = (peers) => {
 
 const updatePeersButton = (peers) => {
   peers.forEach((val, key) => {
-    if (key === provider.awareness.clientID) {
+    if (key === currentID) {
       return
     }
     const el = document.getElementById(`spawn-${key}`)
     el.addEventListener("click", () => {
       const message = JSON.stringify({
         type: 'request',
-        source: provider.awareness.clientID
+        source: currentID
       })
       provider.room.sendToUser(key, message)
     })
   })
+}
+
+const updateShells = () => {
+  shellsContainer.innerHTML = ""
+  runShells.forEach((val, key) => {
+    const ret = document.createElement("button")
+    ret.classList = "btn btn-light"
+    ret.textContent = `${key} running in ${runnerShells.get(key)}`
+    shellsContainer.appendChild(ret)
+    ret.addEventListener('click', () => {
+      ipcRenderer.send('terminal.window.add', key);
+    })
+  })
+  if (subscribedTerminalId) {
+    updateSubscribed()
+  }
 }
 
 const enterRoom = ({roomName, username}, newDoc = true) => {
@@ -117,6 +134,7 @@ const enterRoom = ({roomName, username}, newDoc = true) => {
     signaling: [SIGNALLING_SERVER_URL],
     filterBcConns: false
   })
+  currentID = provider.awareness.clientID;
   provider.awareness.setLocalStateField('user', {
     name: username, color: userColor.color, colorLight: userColor.light
   })
@@ -145,21 +163,7 @@ const enterRoom = ({roomName, username}, newDoc = true) => {
     parent: /** @type {HTMLElement} */ (document.querySelector('#editor'))
   })
 
-  runShells.observeDeep((event, transactions) => {
-    shellsContainer.innerHTML = ""
-    runShells.forEach((val, key) => {
-      const ret = document.createElement("button")
-      ret.classList = "btn btn-light"
-      ret.textContent = `${key} running in ${runnerShells.get(key)}`
-      shellsContainer.appendChild(ret)
-      ret.addEventListener('click', () => {
-        ipcRenderer.send('terminal.window.add', key);
-      })
-    })
-    if (subscribedTerminalId) {
-      updateSubscribed()
-    }
-  })
+  runShells.observeDeep(updateShells)
 }
 
 connectionButton.addEventListener('click', () => {
@@ -174,7 +178,6 @@ connectionButton.addEventListener('click', () => {
     connectionStatus.classList.remove('online')
     connectionStatus.classList.add('offline')
     peersStatus.innerHTML = ""
-    shellsContainer.innerHTML = ""
   } else {
     const enterState = getEnterState()
     codemirrorView.destroy()
@@ -195,7 +198,7 @@ spawnButton.addEventListener("click", () => {
   const code = ytext.toString()
   ipcRenderer.send(
       'compile.request',
-      provider.awareness.clientID,
+      currentID,
       code,
       true
   )
@@ -253,7 +256,8 @@ ipcRenderer.on("message.send", (event, target, message) => {
     message.terminalId = subscribedTerminalId
     message = JSON.stringify(message)
   }
-  if (target === provider.awareness.clientID) {
+  console.log(message)
+  if (target === currentID) {
     messageHandler(message)
   } else {
     provider.room.sendToUser(target, message)
@@ -274,7 +278,7 @@ ipcRenderer.on("terminal.unsubscribe", (event, id) => {
 
 // Set Up UUID after compile, meaning a shell is ready to be used
 ipcRenderer.on("terminal.uuid", (event, uuid) => {
-  runnerShells.set(uuid, provider.awareness.clientID)
+  runnerShells.set(uuid, currentID)
   runShells.set(uuid, new yjs.Array())
 })
 
