@@ -62,5 +62,5 @@ ipcRenderer.on("terminal.incomingData", (event, data) => {
 });
 
 term.onData(e => {
-  ipcRenderer.send("terminal.keystroke", e);
+  ipcRenderer.send("terminal.keystroke.send", e);
 });

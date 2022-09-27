@@ -76,7 +76,6 @@ const compileHandler = (event, source, code) => {
     sendBack(data)
   })
   compileProcess.onExit(data => {
-    // console.log("Exited")
     sendBack(`Exited with code ${data.exitCode}`)
     if (data.exitCode === 0) {
       const uuid = crypto.randomUUID()
@@ -111,8 +110,10 @@ const openTerminalHandler = (event, id) => {
   })
 }
 
-const receiveSubscribedHandler = (event, accumulated, isFirstTime = false) => {
-  if(!terminalWin || terminalWin.isDestroyed()) return;
+const receiveSubscribedHandler = (event, accumulated) => {
+  if (!terminalWin || terminalWin.isDestroyed()) {
+    return;
+  }
   terminalWin.webContents.send("terminal.incomingData", accumulated)
 }
 
@@ -149,11 +150,11 @@ app.whenReady().then(() => {
       createWindow()
     }
   })
-  ipcMain.on('request-compile', compileHandler)
-  ipcMain.on('terminal.add-window', openTerminalHandler)
-  ipcMain.on('terminal.keystroke', keystrokeHandler)
-  ipcMain.on('terminal.receive-keystroke', receiveKeystrokeHandler)
-  ipcMain.on('terminal.send-subscribed', receiveSubscribedHandler)
+  ipcMain.on('compile.request', compileHandler)
+  ipcMain.on('terminal.window.add', openTerminalHandler)
+  ipcMain.on('terminal.keystroke.send', keystrokeHandler)
+  ipcMain.on('terminal.keystroke.receive', receiveKeystrokeHandler)
+  ipcMain.on('terminal.message.receive', receiveSubscribedHandler)
 })
 
 app.on('window-all-closed', () => {

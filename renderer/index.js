@@ -147,7 +147,7 @@ const enterRoom = ({roomName, username}) => {
       shellsContainer.appendChild(ret)
       ret.addEventListener('click', () => {
         // console.log(key)
-        ipcRenderer.send('terminal.add-window', key);
+        ipcRenderer.send('terminal.window.add', key);
       })
     })
     // console.log("OK")
@@ -192,7 +192,7 @@ connectionButton.addEventListener('click', () => {
 spawnButton.addEventListener("click", () => {
   const code = ytext.toString()
   ipcRenderer.send(
-      'request-compile',
+      'compile.request',
       provider.awareness.clientID,
       code,
       true
@@ -214,7 +214,7 @@ const messageHandler = (message) => {
   if (message.type === "request") {
     let code = ytext.toString()
     ipcRenderer.send(
-        'request-compile',
+        'compile.request',
         message.source,
         code)
   } else if (message.type === "compile.append") {
@@ -223,7 +223,7 @@ const messageHandler = (message) => {
     replaceCompileHandler(message.message)
   } else if (message.type === "keystroke") {
     ipcRenderer.send(
-        'terminal.receive-keystroke',
+        'terminal.keystroke.receive',
         message.terminalId,
         message.keystroke,
     )
@@ -243,7 +243,7 @@ const updateSubscribed = () => {
     accumulated += messages[i]
   }
   ipcRenderer.send(
-      'terminal.send-subscribed',
+      'terminal.message.receive',
       accumulated,
       subscribedSize === 0
   )
