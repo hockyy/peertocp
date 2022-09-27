@@ -32,11 +32,13 @@
     "electron-rebuild": "^3.2.9",
     "electron-squirrel-startup": "^1.0.0",
     "jquery": "^3.6.1",
+    "lib0": "^0.2.52",
     "malihu-custom-scrollbar-plugin": "^3.1.5",
     "node-pty": "^0.10.1",
     "term-to-html": "^1.2.0",
     "xterm": "^4.19.0",
     "y-codemirror.next": "^0.3.2",
+    "y-protocols": "^1.0.5",
     "y-webrtc": "github:hockyy/y-webrtc",
     "y-websocket": "^1.4.5",
     "yjs": "^13.5.41"

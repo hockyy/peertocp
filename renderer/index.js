@@ -11,7 +11,7 @@ const {EditorState} = require("@codemirror/state");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
-const {WebsocketProvider} = require("y-websocket");
+const random = require('lib0/random')
 
 const SIGNALLING_SERVER_URL = 'ws://103.167.137.77:4444';
 const WEBSOCKET_SERVER_URL = 'ws://103.167.137.77:4443';
@@ -36,13 +36,14 @@ $("#sidebar").mCustomScrollbar({
 });
 
 let codemirrorView;
-let provider;
+let provider, oldprovider;
 let ytext;
 let runShells;
 let runnerShells;
 let currentState = {};
 let subscribedTerminalId;
 let subscribedSize;
+let ydoc;
 
 /**
  * Generate random color
@@ -103,12 +104,16 @@ const updatePeersButton = (peers) => {
   })
 }
 
-const enterRoom = ({roomName, username}) => {
+const enterRoom = ({roomName, username}, newDoc = true) => {
   currentState = {roomName: roomName, username: username}
   roomStatus.textContent = roomName
-  const ydoc = new yjs.Doc()
+  if (newDoc) {
+    ydoc = new yjs.Doc()
+  } else {
+    ydoc.clientID = random.uint32()
+  }
+  console.log(ydoc)
   provider = new WebrtcProvider(roomName, ydoc, {
-    // awareness: new Awareness(),
     signaling: [SIGNALLING_SERVER_URL],
     filterBcConns: false
   })
@@ -158,9 +163,11 @@ const enterRoom = ({roomName, username}) => {
 }
 
 connectionButton.addEventListener('click', () => {
-  if (provider.shouldConnect) {
+  if (provider) {
     provider.disconnect()
-    // provider.destroy()
+    provider.destroy()
+    oldprovider = provider
+    provider = null
     connectionButton.textContent = 'Connect'
     connectionButton.classList.replace("btn-danger", "btn-success")
     connectionStatus.textContent = "Offline"
@@ -170,12 +177,11 @@ connectionButton.addEventListener('click', () => {
     shellsContainer.innerHTML = ""
   } else {
     const enterState = getEnterState()
+    codemirrorView.destroy()
     if (JSON.stringify(enterState) !== JSON.stringify(currentState)) {
-      provider.destroy()
-      codemirrorView.destroy()
       enterRoom(enterState)
     } else {
-      provider.connect()
+      enterRoom(enterState, false)
     }
     connectionStatus.textContent = "Online"
     connectionStatus.classList.remove('offline')
