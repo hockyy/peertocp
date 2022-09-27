@@ -2,7 +2,6 @@
 
 const {ipcRenderer} = require('electron');
 const yjs = require("yjs");
-const {WebrtcProvider} = require("y-webrtc");
 const {yCollab, yUndoManagerKeymap} = require('y-codemirror.next');
 
 const {basicSetup, EditorView} = require("codemirror");
@@ -12,9 +11,10 @@ const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
 const random = require('lib0/random')
+const {WebsocketProvider} = require("y-websocket");
 
 const SIGNALLING_SERVER_URL = 'ws://103.167.137.77:4444';
-const WEBSOCKET_SERVER_URL = 'ws://103.167.137.77:4443';
+const WEBSOCKET_SERVER_URL = 'ws://localhost:1234';
 const DEFAULT_ROOM = 'welcome-room'
 const DEFAULT_USERNAME = 'Anonymous ' + Math.floor(Math.random() * 100)
 const roomStatus = document.getElementById("room-status")
@@ -127,8 +127,7 @@ const enterRoom = ({roomName, username}, newDoc = true) => {
   if (newDoc) {
     ydoc = new yjs.Doc()
   }
-  provider = new WebrtcProvider(roomName, ydoc, {
-    signaling: [SIGNALLING_SERVER_URL],
+  provider = new WebsocketProvider(WEBSOCKET_SERVER_URL, roomName, ydoc, {
     filterBcConns: false
   })
   currentID = ydoc.clientID;
