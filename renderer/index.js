@@ -35,7 +35,7 @@ $("#sidebar").mCustomScrollbar({
   scrollInertia: 200
 });
 
-let codeMirrorView;
+let codemirrorView;
 let provider;
 let ytext;
 let runShells;
@@ -44,6 +44,10 @@ let currentState = {};
 let subscribedTerminalId;
 let subscribedSize;
 
+/**
+ * Generate random color
+ * @returns {{color: string, light: string}}
+ */
 const randomColor = () => {
   const randomColor = Math.floor(Math.random() * 16777215).toString(16);
   const color = "#" + randomColor;
@@ -133,7 +137,7 @@ const enterRoom = ({roomName, username}) => {
       // oneDark
     ]
   })
-  codeMirrorView = new EditorView({
+  codemirrorView = new EditorView({
     state,
     parent: /** @type {HTMLElement} */ (document.querySelector('#editor'))
   })
@@ -176,7 +180,7 @@ connectionButton.addEventListener('click', () => {
     const enterState = getEnterState()
     if (JSON.stringify(enterState) !== JSON.stringify(currentState)) {
       provider.destroy()
-      codeMirrorView.destroy()
+      codemirrorView.destroy()
       enterRoom(enterState)
     } else {
       provider.connect()
@@ -199,7 +203,7 @@ spawnButton.addEventListener("click", () => {
   )
 })
 
-const compileResultHandler = (data) => {
+const appendCompileHandler = (data) => {
   let tmpHtml = termToHtml.strings(data, termToHtml.themes.light.name)
   tmpHtml = /<pre[^>]*>((.|[\n\r])*)<\/pre>/im.exec(tmpHtml)[1];
   compileResult.innerHTML += tmpHtml
@@ -218,7 +222,7 @@ const messageHandler = (message) => {
         message.source,
         code)
   } else if (message.type === "compile.append") {
-    compileResultHandler(message.message)
+    appendCompileHandler(message.message)
   } else if (message.type === "compile.replace") {
     replaceCompileHandler(message.message)
   } else if (message.type === "shell.keystroke") {
