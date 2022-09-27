@@ -121,9 +121,7 @@ const keystrokeHandler = (event, e) => {
   mainWindow.webContents.send(
       "message.send",
       "active-terminal",
-      {
-        type: "keystroke", keystroke: e
-      }
+      { type: "shell.keystroke", keystroke: e }
   )
 }
 

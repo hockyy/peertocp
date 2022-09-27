@@ -221,7 +221,7 @@ const messageHandler = (message) => {
     compileResultHandler(message.message)
   } else if (message.type === "compile.replace") {
     replaceCompileHandler(message.message)
-  } else if (message.type === "keystroke") {
+  } else if (message.type === "shell.keystroke") {
     ipcRenderer.send(
         'terminal.keystroke.receive',
         message.terminalId,
