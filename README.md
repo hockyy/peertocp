@@ -19,9 +19,3 @@ There will be 4 versions of this app:
   - modified y-websocket ✅
   - CRDT y-text for code editor ✅
   - CRDT y-map for shell sharing ✅
-- Client-Server will be modified from [Codeshare by zerosnake0](https://github.com/zerosnake0/codeshare)
-  - Own Websocket Server
-  - shareDB OT [ot-text-unicode](https://github.com/ottypes/text-unicode)
-  - shareDB OT [json-1](https://github.com/ottypes/json1)
-
-All of them should be done by September 30th
