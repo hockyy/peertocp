@@ -82,13 +82,13 @@ class Connection {
   /**
    * Push update
    * @param version try to update text with this local current version
-   * @param fullUpdates the full update operation from the beginning till now
+   * @param updates the unconfirmed update operation from the beginning till now
    * @returns {Promise<Boolean>} true if succeed
    */
-  async pushUpdates(version, fullUpdates) {
+  async pushUpdates(version, updates) {
     try {
       return this.wsconn.call("pushUpdates", {
-        docName: currentState.roomName, version: version, updates: fullUpdates
+        docName: currentState.roomName, version: version, updates: updates
       })
     } catch (e) {
       console.error(e)
