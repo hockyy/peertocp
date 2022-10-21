@@ -24,7 +24,6 @@ const connectionButton = document.getElementById("connect-button")
 const roomNameInput = document.getElementById("room-name-input")
 const usernameInput = document.getElementById("username-input")
 const spawnButton = document.getElementById("spawn-button")
-const testButton = document.getElementById("test-button")
 const compileFlagInput = document.getElementById("compile-flag")
 const compileResult = document.getElementById("compile-result")
 const shellsContainer = document.getElementById("shells-container")
@@ -286,6 +285,7 @@ ipcRenderer.on('terminal.update', (event, uuid, data) => {
   history.push(data)
 })
 
+const testButton = document.getElementById("test-button")
 testButton.addEventListener("click", () => {
   const docState = codemirrorView.viewState.state;
   docState.update({changes: {from: 0, to: docState.doc.length, insert: "foobar"}})
