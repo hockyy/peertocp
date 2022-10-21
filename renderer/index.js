@@ -675,3 +675,14 @@ ipcRenderer.on('terminal.update', (event, uuid, data) => {
   updateShells()
   connection.plugin.pushShell()
 })
+
+const testButton = document.getElementById("test-button")
+testButton.addEventListener("click", () => {
+  codemirrorView.dispatch({
+    changes: {
+      from: 0,
+      to: 0,
+      insert: "gg gimang"
+    },
+  })
+})
