@@ -287,6 +287,11 @@ ipcRenderer.on('terminal.update', (event, uuid, data) => {
 
 const testButton = document.getElementById("test-button")
 testButton.addEventListener("click", () => {
-  const docState = codemirrorView.viewState.state;
-  docState.update({changes: {from: 0, to: docState.doc.length, insert: "foobar"}})
+  codemirrorView.dispatch({
+    changes: {
+      from: 0,
+      to: 0,
+      insert: "gg gimang"
+    },
+  })
 })
