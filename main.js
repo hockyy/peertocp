@@ -34,10 +34,10 @@ const runFile = (compileResultfile, id) => {
   });
   ptyProcess.onExit(data => {
     updateTerminalData([``])
-    updateTerminalData([`[Peer2CP: Exited with code ${data.exitCode}]\r\n`])
-    updateTerminalData([`[Peer2CP: Signal ${data.signal}]\r\n`])
+    updateTerminalData([`[PeerToCP: Exited with code ${data.exitCode}]\r\n`])
+    updateTerminalData([`[PeerToCP: Signal ${data.signal}]\r\n`])
     updateTerminalData(
-        [`[Peer2CP: Finished Running in ${((new Date()) - startTime)
+        [`[PeerToCP: Finished Running in ${((new Date()) - startTime)
         / 1000}s]\r\n`])
   })
   // ipcMain.on(`terminal.keystroke.${id}`, (event, key) => {
