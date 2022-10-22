@@ -39,6 +39,7 @@
     "xterm": "^4.19.0",
     "y-codemirror.next": "^0.3.2",
     "y-protocols": "^1.0.5",
+    "y-websocket": "github:hockyy/y-websocket",
     "yjs": "^13.5.42"
   },
   "config": {
