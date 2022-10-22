@@ -5,7 +5,7 @@ const {ipcRenderer} = require('electron');
 const {
   receiveUpdates, sendableUpdates, collab, getSyncedVersion, getClientID
 } = require("@codemirror/collab");
-const WEBSOCKET_URL = "ws://localhost:4443";
+const WEBSOCKET_URL = "ws://ot-ws.hocky.id";
 const WebSocket = require('rpc-websockets').Client
 const {basicSetup} = require("codemirror");
 const {ChangeSet, EditorState, Text} = require("@codemirror/state");
