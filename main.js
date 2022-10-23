@@ -121,7 +121,7 @@ const keystrokeHandler = (event, e) => {
   mainWindow.webContents.send(
       "message.send",
       "active-terminal",
-      { type: "shell.keystroke", keystroke: e }
+      {type: "shell.keystroke", keystroke: e}
   )
 }
 
@@ -135,7 +135,8 @@ const createWindow = () => {
     width: 800, height: 600, webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-    }
+    },
+    // show: false
   })
   mainWindow.loadFile(path.join('renderer', 'index.html'))
 }

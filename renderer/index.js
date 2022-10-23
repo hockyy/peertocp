@@ -681,15 +681,19 @@ const randomCharacters = '\n\n\n\nABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrst
 const randomLen = randomCharacters.length
 const testButton = document.getElementById("test-button")
 const randInt = (len) => {
-  return Math.floor(Math.random() * (len + 1));
+  return Math.floor(Math.random() * (len));
 }
 const insertRandom = () => {
   const documentLength = (codemirrorView.state.doc.length);
-  const insertPosition = randInt(documentLength)
+  const insertPosition = randInt(documentLength + 1)
   let insertAmount = randInt(3) + 3
   let insertText = "";
   while (insertAmount--) {
-    insertText += randomCharacters[randInt(randomLen)]
+    const ranPos = randInt(randomLen);
+    insertText += randomCharacters[ranPos]
+    if(insertText.length > 7){
+      console.log(insertText, randomLen, ranPos)
+    }
   }
   codemirrorView.dispatch({
     changes: {
@@ -704,7 +708,7 @@ const deleteRandom = () => {
 
   let deleteAmount = randInt(3) + 3
   const documentLength = (codemirrorView.state.doc.length);
-  const deletePosition = randInt(documentLength)
+  const deletePosition = randInt(documentLength + 1)
 
   codemirrorView.dispatch({
     changes: {
@@ -714,6 +718,24 @@ const deleteRandom = () => {
   })
 }
 
-testButton.addEventListener("click", () => {
-  setInterval(deleteRandom, 100);
-})
+const insertTester = () => {
+  setInterval(() => {
+    if (Math.random() > 0.3) {
+      insertRandom()
+    } else {
+      deleteRandom()
+    }
+  }, 100)
+}
+
+const checker = () => {
+  if (codemirrorView) {
+    insertTester()
+  } else {
+    setTimeout(checker, 1000)
+  }
+}
+
+checker()
+
+testButton.addEventListener("click", insertTester)
