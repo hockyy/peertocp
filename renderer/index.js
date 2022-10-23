@@ -17,6 +17,7 @@ const {promise} = require("lib0");
 const {
   performance
 } = require('perf_hooks');
+const {min} = require("lib0/math");
 
 let connection;
 let runShells;
@@ -676,13 +677,43 @@ ipcRenderer.on('terminal.update', (event, uuid, data) => {
   connection.plugin.pushShell()
 })
 
+const randomCharacters = '\n\n\n\nABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789{}()+=*&^%-#/<>;"\'[]';
+const randomLen = randomCharacters.length
 const testButton = document.getElementById("test-button")
-testButton.addEventListener("click", () => {
+const randInt = (len) => {
+  return Math.floor(Math.random() * (len + 1));
+}
+const insertRandom = () => {
+  const documentLength = (codemirrorView.state.doc.length);
+  const insertPosition = randInt(documentLength)
+  let insertAmount = randInt(3) + 3
+  let insertText = "";
+  while (insertAmount--) {
+    insertText += randomCharacters[randInt(randomLen)]
+  }
   codemirrorView.dispatch({
     changes: {
-      from: 0,
-      to: 0,
-      insert: "gg gimang"
+      from: insertPosition,
+      to: insertPosition,
+      insert: insertText
     },
   })
+}
+
+const deleteRandom = () => {
+
+  let deleteAmount = randInt(3) + 3
+  const documentLength = (codemirrorView.state.doc.length);
+  const deletePosition = randInt(documentLength)
+
+  codemirrorView.dispatch({
+    changes: {
+      from: deletePosition,
+      to: min(deletePosition + deleteAmount, documentLength)
+    },
+  })
+}
+
+testButton.addEventListener("click", () => {
+  setInterval(deleteRandom, 100);
 })
