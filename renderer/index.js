@@ -698,7 +698,6 @@ const insertRandom = () => {
   codemirrorView.dispatch({
     changes: {
       from: insertPosition,
-      to: insertPosition,
       insert: insertText
     },
   })
