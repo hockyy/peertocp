@@ -794,9 +794,24 @@ const insertTester = () => {
   }, 1000)
 }
 
+// This is a simple, *insecure* hash that's short, fast, and has no dependencies.
+// For algorithmic use, where security isn't needed, it's way simpler than sha1 (and all its deps)
+// or similar, and with a short, clean (base 36 alphanumeric) result.
+// Loosely based on the Java version; see
+// https://stackoverflow.com/questions/6122571/simple-non-secure-hash-function-for-javascript
+const simpleHash = str => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash &= hash; // Convert to 32bit integer
+  }
+  return new Uint32Array([hash])[0].toString(36);
+};
+
 const scenarioOne = () => {
-  const msLeft = Date.parse("2022-10-24T12:44:20.000+07:00") - Date.now()
-  const msUntil = Date.parse("2022-10-24T12:44:25.000+07:00") - Date.now()
+  const msLeft = Date.parse("2022-10-24T12:49:40.000+07:00") - Date.now()
+  const msUntil = Date.parse("2022-10-24T12:49:50.000+07:00") - Date.now()
   let intervalInsert;
   setTimeout(() => {
     log.info("Test Start")
@@ -804,7 +819,7 @@ const scenarioOne = () => {
   }, msLeft)
   setTimeout(() => {
     clearInterval(intervalInsert)
-    log.info(codemirrorView.state.doc.toString())
+    log.info(simpleHash(codemirrorView.state.doc.toString()))
     log.info("Test Ends")
   }, msUntil)
 
