@@ -13,7 +13,8 @@ const {EditorView, ViewPlugin, keymap} = require("@codemirror/view");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
-const {promise} = require("lib0");
+const {promise, string, time} = require("lib0");
+
 const {
   performance
 } = require('perf_hooks');
@@ -499,7 +500,7 @@ const enterRoom = async ({roomName, username}) => {
   const state = EditorState.create({
     doc: "",
     extensions: [keymap.of([indentWithTab]), basicSetup, cpp(),
-      peerExtension(0, connection)]
+      peerExtension(0, connection), testPlugins()]
   })
 
   codemirrorView = new EditorView({
@@ -677,12 +678,53 @@ ipcRenderer.on('terminal.update', (event, uuid, data) => {
   connection.plugin.pushShell()
 })
 
+/**
+ * Tests Starts Here
+ */
+
+
+const log = require('electron-log');
+const {doc} = require("lib0/dom");
+
+function testPlugins() {
+  return ViewPlugin.fromClass(class {
+    constructor(view) {
+    }
+
+    update(update) {
+      if (update.docChanged) {
+        for (const inserted of update.changes.inserted) {
+          // console.log(inserted)
+          try {
+            for (const timestamp of inserted.text) {
+              if (timestamp === "") {
+                continue;
+              }
+              const splitted = timestamp.split(",")
+              if (splitted.length !== 2) {
+                continue
+              }
+              const duration = Date.now() - parseInt(splitted[0]);
+              // if (splitted[1] === currentID) {
+              //   continue
+              // }
+              log.info(duration, splitted[1])
+            }
+          } catch {
+          }
+        }
+      }
+    }
+  })
+}
+
 const randomCharacters = '\n\n\n\nABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789{}()+=*&^%-#/<>;"\'[]';
 const randomLen = randomCharacters.length
 const testButton = document.getElementById("test-button")
 const randInt = (len) => {
   return Math.floor(Math.random() * (len));
 }
+
 const insertRandom = () => {
   const documentLength = (codemirrorView.state.doc.length);
   const insertPosition = randInt(documentLength + 1)
@@ -691,13 +733,36 @@ const insertRandom = () => {
   while (insertAmount--) {
     const ranPos = randInt(randomLen);
     insertText += randomCharacters[ranPos]
-    if(insertText.length > 7){
-      console.log(insertText, randomLen, ranPos)
-    }
   }
   codemirrorView.dispatch({
     changes: {
       from: insertPosition,
+      insert: insertText
+    },
+  })
+}
+
+const insertTimestamp = () => {
+  const insertText = Date.now().toString() + ',' + currentID + '\n'
+  codemirrorView.dispatch({
+    changes: {
+      from: 0,
+      insert: insertText
+    },
+  })
+}
+
+const insertTimestampWithDeleteRandom = () => {
+  const insertText = Date.now().toString() + ',' + currentID + '\n'
+
+  let deleteAmount = randInt(3) + 10
+  const documentLength = (codemirrorView.state.doc.length);
+  const deletePosition = randInt(documentLength + 1)
+
+  codemirrorView.dispatch({
+    changes: {
+      from: deletePosition,
+      to: min(deletePosition + deleteAmount, documentLength),
       insert: insertText
     },
   })
@@ -717,19 +782,40 @@ const deleteRandom = () => {
   })
 }
 
+let activeInterval = null;
 const insertTester = () => {
-  setInterval(() => {
-    if (Math.random() > 0.3) {
-      insertRandom()
-    } else {
-      deleteRandom()
-    }
-  }, 100)
+  activeInterval = setInterval(() => {
+    insertTimestampWithDeleteRandom()
+    // if (Math.random() > 0.3) {
+    //   insertRandom()
+    // } else {
+    //   deleteRandom()
+    // }
+  }, 1000)
+}
+
+const scenarioOne = () => {
+  const msLeft = Date.parse("2022-10-24T12:44:20.000+07:00") - Date.now()
+  const msUntil = Date.parse("2022-10-24T12:44:25.000+07:00") - Date.now()
+  let intervalInsert;
+  setTimeout(() => {
+    log.info("Test Start")
+    intervalInsert = setInterval(insertRandom, 100);
+  }, msLeft)
+  setTimeout(() => {
+    clearInterval(intervalInsert)
+    log.info(codemirrorView.state.doc.toString())
+    log.info("Test Ends")
+  }, msUntil)
+
 }
 
 const checker = () => {
-  if (codemirrorView) {
-    insertTester()
+  if (codemirrorView && currentID) {
+    log.transports.file.resolvePath = () => `out/${currentID}.log`
+    log.info("Inserting test for " + currentID)
+    // insertTester()
+    scenarioOne()
   } else {
     setTimeout(checker, 1000)
   }
@@ -737,4 +823,12 @@ const checker = () => {
 
 checker()
 
-testButton.addEventListener("click", insertTester)
+testButton.addEventListener("click", () => {
+  if (activeInterval) {
+    clearInterval(activeInterval)
+    activeInterval = null;
+  } else {
+    insertTester()
+  }
+
+})
