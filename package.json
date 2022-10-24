@@ -28,6 +28,7 @@
     "@codemirror/lang-cpp": "^6.0.1",
     "@codemirror/state": "^6.1.2",
     "@codemirror/view": "^6.4.0",
+    "async-mutex": "^0.4.0",
     "bootstrap": "^5.2.2",
     "codemirror": "^6.0.1",
     "electron-log": "^4.4.8",

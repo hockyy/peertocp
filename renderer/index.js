@@ -5,7 +5,8 @@ const {ipcRenderer} = require('electron');
 const {
   receiveUpdates, sendableUpdates, collab, getSyncedVersion, getClientID
 } = require("@codemirror/collab");
-const WEBSOCKET_URL = "ws://ot-ws.hocky.id";
+// const WEBSOCKET_URL = "ws://ot-ws.hocky.id";
+const WEBSOCKET_URL = "ws://localhost:3000";
 const WebSocket = require('rpc-websockets').Client
 const {basicSetup} = require("codemirror");
 const {ChangeSet, EditorState, Text} = require("@codemirror/state");
@@ -14,6 +15,8 @@ const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
 const {promise, string, time} = require("lib0");
+const TIMEOUT_WSCONN = 1000;
+const Mutex = require('async-mutex').Mutex;
 
 const {
   performance
@@ -91,7 +94,7 @@ class Connection {
     try {
       return this.wsconn.call("pushUpdates", {
         docName: currentState.roomName, version: version, updates: updates
-      })
+      }, TIMEOUT_WSCONN)
     } catch (e) {
       console.error(e)
       return new Promise(resolve => {
@@ -112,7 +115,7 @@ class Connection {
         docName: currentState.roomName,
         shellVersion: shellVersion,
         shellUpdates: shellUpdates
-      })
+      }, TIMEOUT_WSCONN)
     } catch (e) {
       return new Promise(resolve => {
         resolve(false)
@@ -133,17 +136,19 @@ class Connection {
         docName: currentState.roomName,
         version: version,
         shellVersion: shellVersion
-      }).then((updates) => {
+      }, TIMEOUT_WSCONN).then((updates) => {
         return {
           updates: updates.updates.map(u => ({
             changes: ChangeSet.fromJSON(u.changes), clientID: u.clientID
           })), shellUpdates: updates.shellUpdates
         };
+      }).catch(reason => {
+        return false;
       });
     } catch (e) {
       console.error(e)
       return new Promise(resolve => {
-        resolve({updates: [], shellUpdates: []})
+        resolve(false)
       })
     }
   }
@@ -155,7 +160,7 @@ class Connection {
    */
   async getPeers() {
     try {
-      return this.wsconn.call("getPeers")
+      return this.wsconn.call("getPeers", null, TIMEOUT_WSCONN)
     } catch (e) {
       return new Promise(resolve => {
         resolve({selfid: "", ids: []})
@@ -173,7 +178,7 @@ class Connection {
   async sendToUser(to, channel, message) {
     try {
       return this.wsconn.call("sendToPrivate",
-          {to: to, channel: channel, message: message})
+          {to: to, channel: channel, message: message}, TIMEOUT_WSCONN)
     } catch (e) {
       console.error(e)
       return new Promise(resolve => {
@@ -207,8 +212,7 @@ const updateShells = () => {
   runShells.forEach((val, key) => {
     const ret = document.createElement("button")
     ret.classList = "btn btn-light"
-    ret.textContent = `${key} running in ${runnerShells.get(
-        key).spawner}`
+    ret.textContent = `${key} running in ${runnerShells.get(key).spawner}`
     shellsContainer.appendChild(ret)
     ret.addEventListener('click', () => {
       ipcRenderer.send('terminal.window.add', key);
@@ -230,8 +234,9 @@ const updateShells = () => {
 function peerExtension(startVersion = 0, connection) {
 
   const plugin = ViewPlugin.fromClass(class {
-    pulling = false;
     shellVersion = 0;
+    pushMutex = new Mutex()
+    pullMutex = new Mutex()
 
     constructor(view) {
       connection.plugin = this;
@@ -327,74 +332,78 @@ function peerExtension(startVersion = 0, connection) {
      * @returns {boolean} true if update succeeded
      */
     async push() {
-      let updates = sendableUpdates(this.view.state)
-      if (!updates.length) {
-        return false;
-      }
-      try {
-        let version = getSyncedVersion(this.view.state)
-        await connection.pushUpdates(version, updates)
-      } catch (e) {
-        console.error(e)
-      }
-      // Regardless of whether the push failed or new updates came in
-      // while it was running, try again if there's updates remaining
-      if (sendableUpdates(this.view.state).length) {
-        this.pull().then(() => {
-          if (connection.wsconn.ready) {
-            setTimeout(() => {
-              this.push()
-            }, 100)
-          }
-        })
-        return false;
-      }
-      return true;
+      this.pushMutex.runExclusive(async () => {
+        let updates = sendableUpdates(this.view.state)
+        if (!updates.length) {
+          return false;
+        }
+        try {
+          let version = getSyncedVersion(this.view.state)
+          const res = await connection.pushUpdates(version, updates)
+        } catch (e) {
+          console.error(e)
+        }
+        // Regardless of whether the push failed or new updates came in
+        // while it was running, try again if there's updates remaining
+        if (sendableUpdates(this.view.state).length) {
+          this.pull().then((e) => {
+            if (e && connection.wsconn.ready) {
+              setTimeout(() => {
+                this.push()
+              }, 100)
+            }
+          })
+          return false;
+        }
+        return true;
+      })
     }
 
     /**
      * Pull update function, uses semaphore to avoid race conditions
      */
     async pull() {
-      if (this.pulling) {
-        return;
-      }
-      this.pulling = true;
-      try {
-        let version = getSyncedVersion(this.view.state)
-        let updates = await connection.pullUpdates(version, this.shellVersion)
-        this.view.dispatch(receiveUpdates(this.view.state, updates.updates))
-        this.shellVersion += updates.shellUpdates.length
-        for (const shellUpdate of updates.shellUpdates) {
-          switch (shellUpdate.type) {
-            case "spawn":
-              runnerShells.set(shellUpdate.uuid, {
-                spawner: shellUpdate.spawner, updated: true
-              })
-              if (!runShells.has(shellUpdate.uuid)) {
-                runShells.set(shellUpdate.uuid, [])
-              }
-              break
-            case "info":
-              const currentShell = runShells.get(shellUpdate.uuid);
-              while (shellUpdate.index >= currentShell.length) {
-                currentShell.push({
-                  data: "", updated: false
+      const res = await this.pullMutex.runExclusive(async () => {
+        try {
+          let version = getSyncedVersion(this.view.state)
+          let updates = await connection.pullUpdates(version, this.shellVersion)
+          this.view.dispatch(receiveUpdates(this.view.state, updates.updates))
+          this.shellVersion += updates.shellUpdates.length
+          for (const shellUpdate of updates.shellUpdates) {
+            switch (shellUpdate.type) {
+              case "spawn":
+                runnerShells.set(shellUpdate.uuid, {
+                  spawner: shellUpdate.spawner, updated: true
                 })
-              }
-              currentShell[shellUpdate.index] = {
-                data: shellUpdate.data, updated: true
-              }
-              break
+                if (!runShells.has(shellUpdate.uuid)) {
+                  runShells.set(shellUpdate.uuid, [])
+                }
+                break
+              case "info":
+                const currentShell = runShells.get(shellUpdate.uuid);
+                while (shellUpdate.index >= currentShell.length) {
+                  currentShell.push({
+                    data: "", updated: false
+                  })
+                }
+                currentShell[shellUpdate.index] = {
+                  data: shellUpdate.data, updated: true
+                }
+                break
+            }
           }
+          if (updates.shellUpdates.length) {
+            updateShells()
+          }
+          return true;
+        } catch (e) {
+          return false;
         }
-        if (updates.shellUpdates.length) {
-          updateShells()
-        }
-      } catch (e) {
-        console.error(e)
-      }
-      this.pulling = false;
+      })
+      return new Promise(resolve => {
+        resolve(res)
+      })
+
     }
 
     /**
@@ -685,6 +694,8 @@ ipcRenderer.on('terminal.update', (event, uuid, data) => {
 
 const log = require('electron-log');
 const {doc} = require("lib0/dom");
+const {timeout} = require("lib0/eventloop");
+const {resolve} = require("lib0/promise");
 
 function testPlugins() {
   return ViewPlugin.fromClass(class {
@@ -728,7 +739,8 @@ const randInt = (len) => {
 const insertRandom = () => {
   const documentLength = (codemirrorView.state.doc.length);
   const insertPosition = randInt(documentLength + 1)
-  let insertAmount = randInt(3) + 3
+  // let insertAmount = randInt(3) + 3
+  let insertAmount = 1;
   let insertText = "";
   while (insertAmount--) {
     const ranPos = randInt(randomLen);
@@ -736,8 +748,7 @@ const insertRandom = () => {
   }
   codemirrorView.dispatch({
     changes: {
-      from: insertPosition,
-      insert: insertText
+      from: insertPosition, insert: insertText
     },
   })
 }
@@ -746,8 +757,7 @@ const insertTimestamp = () => {
   const insertText = Date.now().toString() + ',' + currentID + '\n'
   codemirrorView.dispatch({
     changes: {
-      from: 0,
-      insert: insertText
+      from: 0, insert: insertText
     },
   })
 }
@@ -810,18 +820,20 @@ const simpleHash = str => {
 };
 
 const scenarioOne = () => {
-  const msLeft = Date.parse("2022-10-24T12:49:40.000+07:00") - Date.now()
-  const msUntil = Date.parse("2022-10-24T12:49:50.000+07:00") - Date.now()
-  let intervalInsert;
+  const msLeft = Date.parse("2022-10-24T13:25:10.000+07:00") - Date.now()
+  const msTestDuration = 10000; // 3 seconds
   setTimeout(() => {
     log.info("Test Start")
-    intervalInsert = setInterval(insertRandom, 100);
+    const intervalInsert = setInterval(insertRandom, 100);
+    setTimeout(() => {
+      clearInterval(intervalInsert)
+      log.info("Test Ends")
+      // 3 seconds timeout to check resolving
+      setTimeout(() => {
+        log.info(simpleHash(codemirrorView.state.doc.toString()))
+      }, 2000)
+    }, msTestDuration)
   }, msLeft)
-  setTimeout(() => {
-    clearInterval(intervalInsert)
-    log.info(simpleHash(codemirrorView.state.doc.toString()))
-    log.info("Test Ends")
-  }, msUntil)
 
 }
 
@@ -830,7 +842,7 @@ const checker = () => {
     log.transports.file.resolvePath = () => `out/${currentID}.log`
     log.info("Inserting test for " + currentID)
     // insertTester()
-    scenarioOne()
+    // scenarioOne()
   } else {
     setTimeout(checker, 1000)
   }
