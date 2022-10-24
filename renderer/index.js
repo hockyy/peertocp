@@ -5,8 +5,8 @@ const {ipcRenderer} = require('electron');
 const {
   receiveUpdates, sendableUpdates, collab, getSyncedVersion, getClientID
 } = require("@codemirror/collab");
-// const WEBSOCKET_URL = "ws://ot-ws.hocky.id";
-const WEBSOCKET_URL = "ws://localhost:3000";
+const WEBSOCKET_URL = "ws://ot-ws.hocky.id";
+// const WEBSOCKET_URL = "ws://localhost:3000";
 const WebSocket = require('rpc-websockets').Client
 const {basicSetup} = require("codemirror");
 const {ChangeSet, EditorState, Text} = require("@codemirror/state");
@@ -332,7 +332,7 @@ function peerExtension(startVersion = 0, connection) {
      * @returns {boolean} true if update succeeded
      */
     async push() {
-      this.pushMutex.runExclusive(async () => {
+      await this.pushMutex.runExclusive(async () => {
         let updates = sendableUpdates(this.view.state)
         if (!updates.length) {
           return false;
@@ -365,9 +365,13 @@ function peerExtension(startVersion = 0, connection) {
     async pull() {
       const res = await this.pullMutex.runExclusive(async () => {
         try {
+          // console.log("Pulling")
           let version = getSyncedVersion(this.view.state)
           let updates = await connection.pullUpdates(version, this.shellVersion)
+          // console.log(version, updates)
           this.view.dispatch(receiveUpdates(this.view.state, updates.updates))
+          // console.log("?")
+          // console.log(`Updated to ${getSyncedVersion(this.view.state)}`)
           this.shellVersion += updates.shellUpdates.length
           for (const shellUpdate of updates.shellUpdates) {
             switch (shellUpdate.type) {
@@ -739,8 +743,8 @@ const randInt = (len) => {
 const insertRandom = () => {
   const documentLength = (codemirrorView.state.doc.length);
   const insertPosition = randInt(documentLength + 1)
-  // let insertAmount = randInt(3) + 3
-  let insertAmount = 1;
+  let insertAmount = randInt(3) + 3
+  // let insertAmount = 1;
   let insertText = "";
   while (insertAmount--) {
     const ranPos = randInt(randomLen);
@@ -749,6 +753,28 @@ const insertRandom = () => {
   codemirrorView.dispatch({
     changes: {
       from: insertPosition, insert: insertText
+    },
+  })
+}
+
+const replaceRandom = () => {
+
+  let deleteAmount = randInt(3) + 3
+  const documentLength = (codemirrorView.state.doc.length);
+  const deletePosition = randInt(documentLength + 1)
+
+  let insertAmount = randInt(3) + 3
+  // let insertAmount = 1;
+  let insertText = "";
+  while (insertAmount--) {
+    const ranPos = randInt(randomLen);
+    insertText += randomCharacters[ranPos]
+  }
+  codemirrorView.dispatch({
+    changes: {
+      from: deletePosition,
+      to: min(deletePosition + deleteAmount, documentLength),
+      insert: insertText
     },
   })
 }
@@ -824,7 +850,16 @@ const scenarioOne = () => {
   const msTestDuration = 10000; // 3 seconds
   setTimeout(() => {
     log.info("Test Start")
-    const intervalInsert = setInterval(insertRandom, 100);
+    const intervalInsert = setInterval(() => {
+      const op = randInt(3)
+      if (op === 0) {
+        insertRandom()
+      } else if (op === 1) {
+        deleteRandom()
+      } else {
+        replaceRandom()
+      }
+    }, 100);
     setTimeout(() => {
       clearInterval(intervalInsert)
       log.info("Test Ends")
@@ -842,7 +877,7 @@ const checker = () => {
     log.transports.file.resolvePath = () => `out/${currentID}.log`
     log.info("Inserting test for " + currentID)
     // insertTester()
-    // scenarioOne()
+    scenarioOne()
   } else {
     setTimeout(checker, 1000)
   }
