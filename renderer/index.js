@@ -298,33 +298,37 @@ function peerExtension(startVersion = 0, connection) {
      * Push shell
      */
     async pushShell() {
-      if (!pendingShellUpdates.length) {
-        return;
-      }
-      let spliceCount = 0;
-      for (; spliceCount < pendingShellUpdates.length; spliceCount++) {
-        const current = pendingShellUpdates[spliceCount];
-        if (current.type === "info" && !runShells.get(
-            current.uuid)[current.index].updated) {
-          break;
+      await this.pushMutex.runExclusive(async () => {
+        if (!pendingShellUpdates.length) {
+          return;
         }
-        if (current.type === "spawn" && !runnerShells.get(
-            current.uuid).updated) {
-          break;
-        }
-      }
-      pendingShellUpdates.splice(0, spliceCount)
-      const pushingCurrent = pendingShellUpdates.slice(0)
-      await connection.pushShellUpdates(this.shellVersion, pushingCurrent);
-      if (pendingShellUpdates.length) {
-        this.pull().then(() => {
-          if (connection.wsconn.ready) {
-            setTimeout(() => {
-              this.pushShell()
-            }, 100)
+        let spliceCount = 0;
+        for (; spliceCount < pendingShellUpdates.length; spliceCount++) {
+          const current = pendingShellUpdates[spliceCount];
+          if (current.type === "info" && !runShells.get(
+              current.uuid)[current.index].updated) {
+            break;
           }
-        })
-      }
+          if (current.type === "spawn" && !runnerShells.get(
+              current.uuid).updated) {
+            break;
+          }
+        }
+        pendingShellUpdates.splice(0, spliceCount)
+        const pushingCurrent = pendingShellUpdates.slice(0)
+        await connection.pushShellUpdates(this.shellVersion, pushingCurrent);
+        if (pendingShellUpdates.length) {
+          this.pull().then((e) => {
+            if (e && connection.wsconn.ready) {
+              setTimeout(() => {
+                this.pushShell()
+              }, 100)
+            }
+          })
+          return false;
+        }
+        return true;
+      })
     }
 
     /**
@@ -743,7 +747,7 @@ const randInt = (len) => {
 const insertRandom = () => {
   const documentLength = (codemirrorView.state.doc.length);
   const insertPosition = randInt(documentLength + 1)
-  let insertAmount = randInt(3) + 3
+  let insertAmount = randInt(50) + 3
   // let insertAmount = 1;
   let insertText = "";
   while (insertAmount--) {
@@ -866,7 +870,7 @@ const scenarioOne = () => {
       // 3 seconds timeout to check resolving
       setTimeout(() => {
         log.info(simpleHash(codemirrorView.state.doc.toString()))
-      }, 2000)
+      }, 10000)
     }, msTestDuration)
   }, msLeft)
 
