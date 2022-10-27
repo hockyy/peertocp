@@ -380,6 +380,7 @@ function peerExtension(startVersion = 0, connection) {
           for (const shellUpdate of updates.shellUpdates) {
             switch (shellUpdate.type) {
               case "spawn":
+                log.info(`spawn,${shellUpdate.uuid},${shellUpdate.spawner}`)
                 runnerShells.set(shellUpdate.uuid, {
                   spawner: shellUpdate.spawner, updated: true
                 })
@@ -393,6 +394,11 @@ function peerExtension(startVersion = 0, connection) {
                   currentShell.push({
                     data: "", updated: false
                   })
+                }
+                if(currentScenario === 4) {
+                  const timeInput = parseInt(shellUpdate.data)
+                  const timeDiff = Date.now() - timeInput;
+                  log.info(`shellProcess,${shellUpdate.uuid},${timeDiff}` )
                 }
                 currentShell[shellUpdate.index] = {
                   data: shellUpdate.data, updated: true
@@ -1003,12 +1009,14 @@ const scenarioFour = () => {
 }
 
 const testPlugins = null;
+const currentScenario = 4;
 const logID = uuidv4()
 
 const checker = () => {
   if (codemirrorView && currentID) {
     log.transports.file.resolvePath = () => `out/${logID}.log`
     log.info("Inserting test for " + currentID)
+    log.info("logID is " + logID)
     const msLeft = Date.parse("2022-10-27T19:27:10.000+07:00") - Date.now()
     // setTimeout(scenarioOne, msLeft)
     // setTimeout(() => {
