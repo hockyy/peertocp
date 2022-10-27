@@ -516,8 +516,11 @@ const enterRoom = async ({roomName, username}) => {
 
   const state = EditorState.create({
     doc: "",
-    extensions: [keymap.of([indentWithTab]), basicSetup, cpp(),
-      peerExtension(0, connection), testPlugins()]
+    extensions: testPlugins !== null ?
+        [keymap.of([indentWithTab]), basicSetup, cpp(),
+          peerExtension(0, connection), testPlugins()] :
+        [keymap.of([indentWithTab]), basicSetup, cpp(),
+          peerExtension(0, connection)]
   })
 
   codemirrorView = new EditorView({
@@ -715,12 +718,9 @@ const randInt = (len) => {
 }
 
 // Scenario One Functions
-
-let startTestTimestamp;
-let endTestTimestamp;
 let lastUpdateTimestamp;
 
-function testPlugins() {
+const scenarioOnePlugins = () => {
   return ViewPlugin.fromClass(class {
     constructor(view) {
     }
@@ -786,35 +786,36 @@ const deleteRandom = (l, r) => {
   })
 }
 
-// Scenario Two Functions
+// Scenario Three Functions
 
-// function testPlugins() {
-//   return ViewPlugin.fromClass(class {
-//     constructor(view) {
-//     }
-//     update(update) {
-//       if (update.docChanged) {
-//         lastUpdateTimestamp = Date.now().toString()
-//         for (const inserted of update.changes.inserted) {
-//           try {
-//             for (const timestamp of inserted.text) {
-//               if (timestamp === "") {
-//                 continue;
-//               }
-//               const splitted = timestamp.split(",")
-//               if (splitted.length !== 2) {
-//                 continue
-//               }
-//               const duration = Date.now() - parseInt(splitted[0]);
-//               log.info(duration, splitted[1])
-//             }
-//           } catch {
-//           }
-//         }
-//       }
-//     }
-//   })
-// }
+const scenarioThreePlugins = () => {
+  return ViewPlugin.fromClass(class {
+    constructor(view) {
+    }
+
+    update(update) {
+      if (update.docChanged) {
+        lastUpdateTimestamp = Date.now().toString()
+        for (const inserted of update.changes.inserted) {
+          try {
+            for (const timestamp of inserted.text) {
+              if (timestamp === "") {
+                continue;
+              }
+              const splitted = timestamp.split(",")
+              if (splitted.length !== 2) {
+                continue
+              }
+              const duration = Date.now() - parseInt(splitted[0]);
+              log.info(duration, splitted[1])
+            }
+          } catch {
+          }
+        }
+      }
+    }
+  })
+}
 
 const insertTimestamp = () => {
   const insertText = Date.now().toString() + ',' + currentID + '\n'
@@ -859,17 +860,20 @@ const simpleHash = str => {
 const SECOND = 1000
 const MINUTE = 60 * SECOND
 
-let startTest = 0;
-
-const scenarioOne = () => {
-  const startDisconnectTime = randRange(MINUTE, (MINUTE / 2) * 3) // 30 seconds start gap
-  const disconnectDuration = 10 * SECOND
+const goDisconnect = (startDisconnectTime, disconnectDuration) => {
   setTimeout(() => {
     connectionButton.click()
+    log.info(`Disconnecting: ${Date.now().toString()}`)
     setTimeout(() => {
       connectionButton.click()
+      log.info(`Connecting: ${Date.now().toString()}`)
     }, disconnectDuration)
   }, startDisconnectTime)
+
+}
+
+const scenarioOne = () => {
+  goDisconnect(randRange(MINUTE, (MINUTE / 2) * 3), 10 * SECOND)
   log.info("Scenario One - Test Start")
   const msTestDuration = 3 * MINUTE; // 3 minutes
   const insertEvery = SECOND / 10;
@@ -886,7 +890,7 @@ const scenarioOne = () => {
   setTimeout(() => {
     log.info(`End Test: ${Date.now().toString()}`)
     clearInterval(intervalInsert)
-    // 3 seconds timeout to check resolving
+    // A minute timeout to check resolving
     setTimeout(() => {
       log.info(`Last Update: ${lastUpdateTimestamp}`)
       log.info(`Exit Test: ${Date.now().toString()}`)
@@ -895,43 +899,63 @@ const scenarioOne = () => {
   }, msTestDuration)
 }
 
+const scenarioTwoCode = `#include <unistd.h>
+#include <iostream>
+#include <cstdlib>
+
+using namespace std;
+
+#include <random>
+#include <chrono>
+mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count()); //For LL
+
+int main(){
+  const int OneSecond = 1e6;
+  const int HalfSecond = OneSecond>>1;
+  for(int i = 1;i <= 100;i++){
+    double sleepDuration = (rng()%OneSecond) + HalfSecond;
+    usleep(sleepDuration);
+    cout << rng() << flush << endl;
+  }
+  return 0;
+}
+`;
+
+const scenarioTwo = () => {
+  codemirrorView.dispatch({
+    changes: {
+      from: 0,
+      to: codemirrorView.state.doc.length,
+      insert: scenarioTwoCode
+    },
+  })
+  spawnButton.click()
+  goDisconnect(randRange(10 * SECOND, 40 * SECOND), 20 * SECOND)
+  log.info("Scenario Two - Test Start")
+  const msTestDuration = 180 * SECOND
+  setTimeout(() => {
+    log.info(`End Test: ${Date.now().toString()}`)
+    // A minute timeout to check resolving
+    setTimeout(() => {
+      log.info(`Last Update: ${lastUpdateTimestamp}`)
+      log.info(`Exit Test: ${Date.now().toString()}`)
+      log.info(simpleHash(codemirrorView.state.doc.toString()))
+    }, MINUTE)
+  }, msTestDuration)
+}
+
+const testPlugins = null;
+
 const checker = () => {
   if (codemirrorView && currentID) {
     log.transports.file.resolvePath = () => `out/${currentID}.log`
     log.info("Inserting test for " + currentID)
     const msLeft = Date.parse("2022-10-24T13:25:10.000+07:00") - Date.now()
-    const scenarioTest = () => {
-      scenarioOne()
-      // scenarioTwo()
-      // scenarioThree()
-      // scenarioFour()
-    }
-    setTimeout(scenarioTest, msLeft)
+    // setTimeout(scenarioOne, msLeft)
+    setTimeout(scenarioTwo, msLeft)
   } else {
     setTimeout(checker, SECOND)
   }
 }
 
 checker()
-
-// let activeInterval = null;
-// const insertTester = () => {
-//   activeInterval = setInterval(() => {
-//     insertTimestampWithDeleteRandom()
-//     // if (Math.random() > 0.3) {
-//     //   insertRandom()
-//     // } else {
-//     //   deleteRandom()
-//     // }
-//   }, 1000)
-// }
-//
-// testButton.addEventListener("click", () => {
-//   if (activeInterval) {
-//     clearInterval(activeInterval)
-//     activeInterval = null;
-//   } else {
-//     insertTester()
-//   }
-//
-// })
