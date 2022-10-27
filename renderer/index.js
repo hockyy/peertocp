@@ -700,7 +700,7 @@ ipcRenderer.on('terminal.update', (event, uuid, data) => {
  */
 
 
-const randRange = (l, r) =>{
+const randRange = (l, r) => {
   return randInt(r - l + 1) + l;
 }
 
@@ -715,6 +715,23 @@ const randInt = (len) => {
 }
 
 // Scenario One Functions
+
+let startTestTimestamp;
+let endTestTimestamp;
+let lastUpdateTimestamp;
+
+function testPlugins() {
+  return ViewPlugin.fromClass(class {
+    constructor(view) {
+    }
+
+    update(update) {
+      if (update.docChanged) {
+        lastUpdateTimestamp = Date.now().toString()
+      }
+    }
+  })
+}
 
 const insertRandom = (l, r) => {
   const documentLength = (codemirrorView.state.doc.length);
@@ -771,35 +788,33 @@ const deleteRandom = (l, r) => {
 
 // Scenario Two Functions
 
-
-
-function testPlugins() {
-  return ViewPlugin.fromClass(class {
-    constructor(view) {
-    }
-    update(update) {
-      if (update.docChanged) {
-        for (const inserted of update.changes.inserted) {
-          try {
-            for (const timestamp of inserted.text) {
-              if (timestamp === "") {
-                continue;
-              }
-              const splitted = timestamp.split(",")
-              if (splitted.length !== 2) {
-                continue
-              }
-              const duration = Date.now() - parseInt(splitted[0]);
-              log.info(duration, splitted[1])
-            }
-          } catch {
-          }
-        }
-      }
-    }
-  })
-}
-
+// function testPlugins() {
+//   return ViewPlugin.fromClass(class {
+//     constructor(view) {
+//     }
+//     update(update) {
+//       if (update.docChanged) {
+//         lastUpdateTimestamp = Date.now().toString()
+//         for (const inserted of update.changes.inserted) {
+//           try {
+//             for (const timestamp of inserted.text) {
+//               if (timestamp === "") {
+//                 continue;
+//               }
+//               const splitted = timestamp.split(",")
+//               if (splitted.length !== 2) {
+//                 continue
+//               }
+//               const duration = Date.now() - parseInt(splitted[0]);
+//               log.info(duration, splitted[1])
+//             }
+//           } catch {
+//           }
+//         }
+//       }
+//     }
+//   })
+// }
 
 const insertTimestamp = () => {
   const insertText = Date.now().toString() + ',' + currentID + '\n'
@@ -844,8 +859,10 @@ const simpleHash = str => {
 const SECOND = 1000
 const MINUTE = 60 * SECOND
 
+let startTest = 0;
+
 const scenarioOne = () => {
-  const startDisconnectTime = randRange(MINUTE, (MINUTE / 2 ) * 3) // 30 seconds start gap
+  const startDisconnectTime = randRange(MINUTE, (MINUTE / 2) * 3) // 30 seconds start gap
   const disconnectDuration = 10 * SECOND
   setTimeout(() => {
     connectionButton.click()
@@ -861,16 +878,18 @@ const scenarioOne = () => {
     if (op === 0) {
       insertRandom(2, 5)
     } else if (op === 1) {
-      deleteRandom(2, 5)
+      deleteRandom(1, 3)
     } else {
       replaceRandom(2, 5)
     }
   }, insertEvery);
   setTimeout(() => {
+    log.info(`End Test: ${Date.now().toString()}`)
     clearInterval(intervalInsert)
-    log.info("Test Ends")
     // 3 seconds timeout to check resolving
     setTimeout(() => {
+      log.info(`Last Update: ${lastUpdateTimestamp}`)
+      log.info(`Exit Test: ${Date.now().toString()}`)
       log.info(simpleHash(codemirrorView.state.doc.toString()))
     }, MINUTE)
   }, msTestDuration)
@@ -881,9 +900,15 @@ const checker = () => {
     log.transports.file.resolvePath = () => `out/${currentID}.log`
     log.info("Inserting test for " + currentID)
     const msLeft = Date.parse("2022-10-24T13:25:10.000+07:00") - Date.now()
-    setTimeout(scenarioOne, msLeft)
+    const scenarioTest = () => {
+      scenarioOne()
+      // scenarioTwo()
+      // scenarioThree()
+      // scenarioFour()
+    }
+    setTimeout(scenarioTest, msLeft)
   } else {
-    setTimeout(checker, 1000)
+    setTimeout(checker, SECOND)
   }
 }
 
