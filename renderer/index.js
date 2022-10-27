@@ -845,7 +845,6 @@ const insertTimestampWithDeleteRandom = (l, r) => {
 
 const stableStringify = require('fast-stable-stringify');
 
-
 // This is a simple, *insecure* hash that's short, fast, and has no dependencies.
 // For algorithmic use, where security isn't needed, it's way simpler than sha1 (and all its deps)
 // or similar, and with a short, clean (base 36 alphanumeric) result.
@@ -916,7 +915,7 @@ mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count()); //For LL
 int main(){
   const int OneSecond = 1e6;
   const int HalfSecond = OneSecond>>1;
-  for(int i = 1;i <= 10;i++){
+  for(int i = 1;i <= 100;i++){
     double sleepDuration = (rng()%OneSecond) + HalfSecond;
     usleep(sleepDuration);
     cout << rng() << flush << endl;
@@ -926,17 +925,10 @@ int main(){
 `;
 
 const scenarioTwo = () => {
-  codemirrorView.dispatch({
-    changes: {
-      from: 0,
-      to: codemirrorView.state.doc.length,
-      insert: scenarioTwoCode
-    },
-  })
-  // spawnButton.click()
-  // goDisconnect(randRange(10 * SECOND, 40 * SECOND), 20 * SECOND)
+  spawnButton.click()
+  goDisconnect(randRange(10 * SECOND, 40 * SECOND), 20 * SECOND)
   log.info("Scenario Two - Test Start")
-  const testDuration = 15 * SECOND
+  const testDuration = 150 * SECOND
   setTimeout(() => {
     log.info(`End Test: ${Date.now().toString()}`)
     // A minute timeout to check resolving
@@ -944,7 +936,7 @@ const scenarioTwo = () => {
       log.info(`Last Update: ${lastUpdateTimestamp}`)
       log.info(`Exit Test: ${Date.now().toString()}`)
       log.info(simpleHash(stableStringify(Object.fromEntries(runShells))))
-    }, SECOND)
+    }, MINUTE)
   }, testDuration)
 }
 
@@ -971,6 +963,34 @@ const scenarioThree = () => {
   }, testDuration)
 }
 
+const scenarioFourCode = `#include <chrono>
+#include <iostream>
+
+using namespace std;
+using namespace chrono;
+int main(){
+  milliseconds ms = duration_cast< milliseconds >(
+      system_clock::now().time_since_epoch()
+  );
+  cout << ms.count() << endl;
+}
+`;
+
+const scenarioFour = () => {
+  spawnButton.click()
+  log.info("Scenario Four - Test Start")
+  const testDuration = 15 * SECOND
+  setTimeout(() => {
+    log.info(`End Test: ${Date.now().toString()}`)
+    // A minute timeout to check resolving
+    setTimeout(() => {
+      log.info(`Last Update: ${lastUpdateTimestamp}`)
+      log.info(`Exit Test: ${Date.now().toString()}`)
+      log.info(simpleHash(stableStringify(Object.fromEntries(runShells))))
+    }, SECOND)
+  }, testDuration)
+}
+
 const testPlugins = null;
 const logID = uuidv4()
 
@@ -978,11 +998,29 @@ const checker = () => {
   if (codemirrorView && currentID) {
     log.transports.file.resolvePath = () => `out/${logID}.log`
     log.info("Inserting test for " + currentID)
-    const msLeft = Date.parse("2022-10-24T13:25:10.000+07:00") - Date.now()
+    const msLeft = Date.parse("2022-10-27T19:27:10.000+07:00") - Date.now()
     // setTimeout(scenarioOne, msLeft)
-    setTimeout(scenarioTwo, msLeft)
+    // setTimeout(() => {
+    //   codemirrorView.dispatch({
+    //     changes: {
+    //       from: 0,
+    //       to: codemirrorView.state.doc.length,
+    //       insert: scenarioTwoCode
+    //     },
+    //   })
+    // }, msLeft - 10 * SECOND)
+    // setTimeout(scenarioTwo, msLeft)
     // setTimeout(scenarioThree, msLeft)
-    // setTimeout(scenarioFour, msLeft)
+    setTimeout(() => {
+      codemirrorView.dispatch({
+        changes: {
+          from: 0,
+          to: codemirrorView.state.doc.length,
+          insert: scenarioFourCode
+        },
+      })
+    }, msLeft - 10 * SECOND)
+    setTimeout(scenarioFour, msLeft)
   } else {
     setTimeout(checker, SECOND)
   }
