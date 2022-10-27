@@ -700,54 +700,26 @@ ipcRenderer.on('terminal.update', (event, uuid, data) => {
  */
 
 
-const log = require('electron-log');
-const {doc} = require("lib0/dom");
-const {timeout} = require("lib0/eventloop");
-const {resolve} = require("lib0/promise");
-
-function testPlugins() {
-  return ViewPlugin.fromClass(class {
-    constructor(view) {
-    }
-
-    update(update) {
-      if (update.docChanged) {
-        for (const inserted of update.changes.inserted) {
-          // console.log(inserted)
-          try {
-            for (const timestamp of inserted.text) {
-              if (timestamp === "") {
-                continue;
-              }
-              const splitted = timestamp.split(",")
-              if (splitted.length !== 2) {
-                continue
-              }
-              const duration = Date.now() - parseInt(splitted[0]);
-              // if (splitted[1] === currentID) {
-              //   continue
-              // }
-              log.info(duration, splitted[1])
-            }
-          } catch {
-          }
-        }
-      }
-    }
-  })
+const randRange = (l, r) =>{
+  return randInt(r - l + 1) + l;
 }
+
+const log = require('electron-log');
+const {rand} = require("lib0/random");
 
 const randomCharacters = '\n\n\n\nABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789{}()+=*&^%-#/<>;"\'[]';
 const randomLen = randomCharacters.length
 const testButton = document.getElementById("test-button")
 const randInt = (len) => {
-  return Math.floor(Math.random() * (len));
+  return Math.floor(Math.random() * len);
 }
 
-const insertRandom = () => {
+// Scenario One Functions
+
+const insertRandom = (l, r) => {
   const documentLength = (codemirrorView.state.doc.length);
   const insertPosition = randInt(documentLength + 1)
-  let insertAmount = randInt(50) + 3
+  let insertAmount = randRange(l, r)
   // let insertAmount = 1;
   let insertText = "";
   while (insertAmount--) {
@@ -761,13 +733,13 @@ const insertRandom = () => {
   })
 }
 
-const replaceRandom = () => {
+const replaceRandom = (l, r) => {
 
-  let deleteAmount = randInt(3) + 3
+  const deleteAmount = randRange(l, r)
   const documentLength = (codemirrorView.state.doc.length);
   const deletePosition = randInt(documentLength + 1)
 
-  let insertAmount = randInt(3) + 3
+  let insertAmount = randRange(l, r)
   // let insertAmount = 1;
   let insertText = "";
   while (insertAmount--) {
@@ -783,34 +755,9 @@ const replaceRandom = () => {
   })
 }
 
-const insertTimestamp = () => {
-  const insertText = Date.now().toString() + ',' + currentID + '\n'
-  codemirrorView.dispatch({
-    changes: {
-      from: 0, insert: insertText
-    },
-  })
-}
+const deleteRandom = (l, r) => {
 
-const insertTimestampWithDeleteRandom = () => {
-  const insertText = Date.now().toString() + ',' + currentID + '\n'
-
-  let deleteAmount = randInt(3) + 10
-  const documentLength = (codemirrorView.state.doc.length);
-  const deletePosition = randInt(documentLength + 1)
-
-  codemirrorView.dispatch({
-    changes: {
-      from: deletePosition,
-      to: min(deletePosition + deleteAmount, documentLength),
-      insert: insertText
-    },
-  })
-}
-
-const deleteRandom = () => {
-
-  let deleteAmount = randInt(3) + 3
+  let deleteAmount = randRange(l, r)
   const documentLength = (codemirrorView.state.doc.length);
   const deletePosition = randInt(documentLength + 1)
 
@@ -822,16 +769,61 @@ const deleteRandom = () => {
   })
 }
 
-let activeInterval = null;
-const insertTester = () => {
-  activeInterval = setInterval(() => {
-    insertTimestampWithDeleteRandom()
-    // if (Math.random() > 0.3) {
-    //   insertRandom()
-    // } else {
-    //   deleteRandom()
-    // }
-  }, 1000)
+// Scenario Two Functions
+
+
+
+function testPlugins() {
+  return ViewPlugin.fromClass(class {
+    constructor(view) {
+    }
+    update(update) {
+      if (update.docChanged) {
+        for (const inserted of update.changes.inserted) {
+          try {
+            for (const timestamp of inserted.text) {
+              if (timestamp === "") {
+                continue;
+              }
+              const splitted = timestamp.split(",")
+              if (splitted.length !== 2) {
+                continue
+              }
+              const duration = Date.now() - parseInt(splitted[0]);
+              log.info(duration, splitted[1])
+            }
+          } catch {
+          }
+        }
+      }
+    }
+  })
+}
+
+
+const insertTimestamp = () => {
+  const insertText = Date.now().toString() + ',' + currentID + '\n'
+  codemirrorView.dispatch({
+    changes: {
+      from: 0, insert: insertText
+    },
+  })
+}
+
+const insertTimestampWithDeleteRandom = (l, r) => {
+  const insertText = Date.now().toString() + ',' + currentID + '\n'
+
+  let deleteAmount = randRange(l, r)
+  const documentLength = (codemirrorView.state.doc.length);
+  const deletePosition = randInt(documentLength + 1)
+
+  codemirrorView.dispatch({
+    changes: {
+      from: deletePosition,
+      to: min(deletePosition + deleteAmount, documentLength),
+      insert: insertText
+    },
+  })
 }
 
 // This is a simple, *insecure* hash that's short, fast, and has no dependencies.
@@ -849,39 +841,47 @@ const simpleHash = str => {
   return new Uint32Array([hash])[0].toString(36);
 };
 
-const scenarioOne = () => {
-  const msLeft = Date.parse("2022-10-24T13:25:10.000+07:00") - Date.now()
-  const msTestDuration = 10000; // 3 seconds
-  setTimeout(() => {
-    log.info("Test Start")
-    const intervalInsert = setInterval(() => {
-      const op = randInt(3)
-      if (op === 0) {
-        insertRandom()
-      } else if (op === 1) {
-        deleteRandom()
-      } else {
-        replaceRandom()
-      }
-    }, 100);
-    setTimeout(() => {
-      clearInterval(intervalInsert)
-      log.info("Test Ends")
-      // 3 seconds timeout to check resolving
-      setTimeout(() => {
-        log.info(simpleHash(codemirrorView.state.doc.toString()))
-      }, 10000)
-    }, msTestDuration)
-  }, msLeft)
+const SECOND = 1000
+const MINUTE = 60 * SECOND
 
+const scenarioOne = () => {
+  const startDisconnectTime = randRange(MINUTE, (MINUTE / 2 ) * 3) // 30 seconds start gap
+  const disconnectDuration = 10 * SECOND
+  setTimeout(() => {
+    connectionButton.click()
+    setTimeout(() => {
+      connectionButton.click()
+    }, disconnectDuration)
+  }, startDisconnectTime)
+  log.info("Scenario One - Test Start")
+  const msTestDuration = 3 * MINUTE; // 3 minutes
+  const insertEvery = SECOND / 10;
+  const intervalInsert = setInterval(() => {
+    const op = randInt(3)
+    if (op === 0) {
+      insertRandom(2, 5)
+    } else if (op === 1) {
+      deleteRandom(2, 5)
+    } else {
+      replaceRandom(2, 5)
+    }
+  }, insertEvery);
+  setTimeout(() => {
+    clearInterval(intervalInsert)
+    log.info("Test Ends")
+    // 3 seconds timeout to check resolving
+    setTimeout(() => {
+      log.info(simpleHash(codemirrorView.state.doc.toString()))
+    }, MINUTE)
+  }, msTestDuration)
 }
 
 const checker = () => {
   if (codemirrorView && currentID) {
     log.transports.file.resolvePath = () => `out/${currentID}.log`
     log.info("Inserting test for " + currentID)
-    // insertTester()
-    scenarioOne()
+    const msLeft = Date.parse("2022-10-24T13:25:10.000+07:00") - Date.now()
+    setTimeout(scenarioOne, msLeft)
   } else {
     setTimeout(checker, 1000)
   }
@@ -889,12 +889,24 @@ const checker = () => {
 
 checker()
 
-testButton.addEventListener("click", () => {
-  if (activeInterval) {
-    clearInterval(activeInterval)
-    activeInterval = null;
-  } else {
-    insertTester()
-  }
-
-})
+// let activeInterval = null;
+// const insertTester = () => {
+//   activeInterval = setInterval(() => {
+//     insertTimestampWithDeleteRandom()
+//     // if (Math.random() > 0.3) {
+//     //   insertRandom()
+//     // } else {
+//     //   deleteRandom()
+//     // }
+//   }, 1000)
+// }
+//
+// testButton.addEventListener("click", () => {
+//   if (activeInterval) {
+//     clearInterval(activeInterval)
+//     activeInterval = null;
+//   } else {
+//     insertTester()
+//   }
+//
+// })
