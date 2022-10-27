@@ -3,18 +3,17 @@
 const {ipcRenderer} = require('electron');
 
 const {
-  receiveUpdates, sendableUpdates, collab, getSyncedVersion, getClientID
+  receiveUpdates, sendableUpdates, collab, getSyncedVersion
 } = require("@codemirror/collab");
 const WEBSOCKET_URL = "ws://ot-ws.hocky.id";
 // const WEBSOCKET_URL = "ws://localhost:3000";
 const WebSocket = require('rpc-websockets').Client
 const {basicSetup} = require("codemirror");
-const {ChangeSet, EditorState, Text} = require("@codemirror/state");
+const {ChangeSet, EditorState} = require("@codemirror/state");
 const {EditorView, ViewPlugin, keymap} = require("@codemirror/view");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
-const {promise, string, time} = require("lib0");
 const TIMEOUT_WSCONN = 1000;
 const Mutex = require('async-mutex').Mutex;
 
@@ -59,6 +58,7 @@ class Connection {
       const start = performance.now();
       this.ping().then(res => {
         const dur = performance.now() - start
+        log.info(`Ping,${Date.now().toString()},${dur}`)
         if (res) {
           pingStatus.innerHTML = dur.toFixed(2);
         } else {
@@ -401,6 +401,7 @@ function peerExtension(startVersion = 0, connection) {
             }
           }
           if (updates.shellUpdates.length) {
+            lastUpdateTimestamp = Date.now().toString()
             updateShells()
           }
           return true;
@@ -708,7 +709,7 @@ const randRange = (l, r) => {
 }
 
 const log = require('electron-log');
-const {rand} = require("lib0/random");
+const {rand, uuidv4} = require("lib0/random");
 
 const randomCharacters = '\n\n\n\nABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789{}()+=*&^%-#/<>;"\'[]';
 const randomLen = randomCharacters.length
@@ -842,6 +843,9 @@ const insertTimestampWithDeleteRandom = (l, r) => {
   })
 }
 
+const stableStringify = require('fast-stable-stringify');
+
+
 // This is a simple, *insecure* hash that's short, fast, and has no dependencies.
 // For algorithmic use, where security isn't needed, it's way simpler than sha1 (and all its deps)
 // or similar, and with a short, clean (base 36 alphanumeric) result.
@@ -875,7 +879,7 @@ const goDisconnect = (startDisconnectTime, disconnectDuration) => {
 const scenarioOne = () => {
   goDisconnect(randRange(MINUTE, (MINUTE / 2) * 3), 10 * SECOND)
   log.info("Scenario One - Test Start")
-  const msTestDuration = 3 * MINUTE; // 3 minutes
+  const testDuration = 3 * MINUTE; // 3 minutes
   const insertEvery = SECOND / 10;
   const intervalInsert = setInterval(() => {
     const op = randInt(3)
@@ -896,7 +900,7 @@ const scenarioOne = () => {
       log.info(`Exit Test: ${Date.now().toString()}`)
       log.info(simpleHash(codemirrorView.state.doc.toString()))
     }, MINUTE)
-  }, msTestDuration)
+  }, testDuration)
 }
 
 const scenarioTwoCode = `#include <unistd.h>
@@ -912,7 +916,7 @@ mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count()); //For LL
 int main(){
   const int OneSecond = 1e6;
   const int HalfSecond = OneSecond>>1;
-  for(int i = 1;i <= 100;i++){
+  for(int i = 1;i <= 10;i++){
     double sleepDuration = (rng()%OneSecond) + HalfSecond;
     usleep(sleepDuration);
     cout << rng() << flush << endl;
@@ -929,30 +933,56 @@ const scenarioTwo = () => {
       insert: scenarioTwoCode
     },
   })
-  spawnButton.click()
-  goDisconnect(randRange(10 * SECOND, 40 * SECOND), 20 * SECOND)
+  // spawnButton.click()
+  // goDisconnect(randRange(10 * SECOND, 40 * SECOND), 20 * SECOND)
   log.info("Scenario Two - Test Start")
-  const msTestDuration = 180 * SECOND
+  const testDuration = 15 * SECOND
   setTimeout(() => {
     log.info(`End Test: ${Date.now().toString()}`)
     // A minute timeout to check resolving
     setTimeout(() => {
       log.info(`Last Update: ${lastUpdateTimestamp}`)
       log.info(`Exit Test: ${Date.now().toString()}`)
+      log.info(simpleHash(stableStringify(Object.fromEntries(runShells))))
+    }, SECOND)
+  }, testDuration)
+}
+
+const scenarioThree = () => {
+  log.info("Scenario Three - Test Start")
+  const testDuration = MINUTE; // 3 minutes
+  const intervalInsert = setInterval(() => {
+    const op = randInt(2)
+    if (op === 0) {
+      insertTimestamp()
+    } else {
+      insertTimestampWithDeleteRandom(10, 15)
+    }
+  }, SECOND);
+  setTimeout(() => {
+    log.info(`End Test: ${Date.now().toString()}`)
+    clearInterval(intervalInsert)
+    // A minute timeout to check resolving
+    setTimeout(() => {
+      log.info(`Last Update: ${lastUpdateTimestamp}`)
+      log.info(`Exit Test: ${Date.now().toString()}`)
       log.info(simpleHash(codemirrorView.state.doc.toString()))
     }, MINUTE)
-  }, msTestDuration)
+  }, testDuration)
 }
 
 const testPlugins = null;
+const logID = uuidv4()
 
 const checker = () => {
   if (codemirrorView && currentID) {
-    log.transports.file.resolvePath = () => `out/${currentID}.log`
+    log.transports.file.resolvePath = () => `out/${logID}.log`
     log.info("Inserting test for " + currentID)
     const msLeft = Date.parse("2022-10-24T13:25:10.000+07:00") - Date.now()
     // setTimeout(scenarioOne, msLeft)
     setTimeout(scenarioTwo, msLeft)
+    // setTimeout(scenarioThree, msLeft)
+    // setTimeout(scenarioFour, msLeft)
   } else {
     setTimeout(checker, SECOND)
   }
