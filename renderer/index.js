@@ -115,7 +115,7 @@ const updateShells = ([e]) => {
     if (subscribedTerminalId) {
       updateSubscribed()
     }
-  } else if (currentScenario === 4) {
+  } else if (currentTestScenario === 4) {
     const targetShellID = Array.from(e.currentTarget._map.keys())[0];
     for (const delta of e.delta) {
       if (delta.insert) {
@@ -602,7 +602,7 @@ const scenarioFour = () => {
 }
 
 const testPlugins = null;
-const currentScenario = 4;
+const currentTestScenario = 4;
 const logID = uuidv4()
 
 const checker = () => {
