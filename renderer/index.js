@@ -112,9 +112,6 @@ const updateShells = ([e]) => {
         ipcRenderer.send('terminal.window.add', key);
       })
     })
-    if (subscribedTerminalId) {
-      updateSubscribed()
-    }
   } else if (currentTestScenario === 4) {
     const targetShellID = Array.from(e.currentTarget._map.keys())[0];
     for (const delta of e.delta) {
@@ -124,6 +121,9 @@ const updateShells = ([e]) => {
         log.info(`shellProcess,${targetShellID},${timeDiff}`)
       }
     }
+  }
+  if (subscribedTerminalId) {
+    updateSubscribed()
   }
 }
 
@@ -623,16 +623,16 @@ const checker = () => {
     // }, msLeft - 10 * SECOND)
     // setTimeout(scenarioTwo, msLeft)
     // setTimeout(scenarioThree, msLeft)
-    // setTimeout(() => {
-    //   codemirrorView.dispatch({
-    //     changes: {
-    //       from: 0,
-    //       to: codemirrorView.state.doc.length,
-    //       insert: scenarioFourCode
-    //     },
-    //   })
-    // }, msLeft - 10 * SECOND)
-    // setTimeout(scenarioFour, msLeft)
+    setTimeout(() => {
+      codemirrorView.dispatch({
+        changes: {
+          from: 0,
+          to: codemirrorView.state.doc.length,
+          insert: scenarioFourCode
+        },
+      })
+    }, msLeft - 10 * SECOND)
+    setTimeout(scenarioFour, msLeft)
   } else {
     setTimeout(checker, SECOND)
   }
