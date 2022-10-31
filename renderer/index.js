@@ -5,7 +5,7 @@ const yjs = require("yjs");
 const {yCollab, yUndoManagerKeymap} = require('y-codemirror.next');
 
 const {basicSetup, EditorView} = require("codemirror");
-const {keymap} = require("@codemirror/view");
+const {keymap, ViewPlugin} = require("@codemirror/view");
 const {EditorState} = require("@codemirror/state");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
@@ -66,10 +66,6 @@ const getEnterState = () => {
   };
 }
 
-window.addEventListener('load', () => {
-  enterRoom(getEnterState())
-})
-
 const getPeersString = (peers) => {
   const ret = document.createElement("ul")
   peers.forEach((val, key) => {
@@ -104,17 +100,28 @@ const updatePeersButton = (peers) => {
   })
 }
 
-const updateShells = () => {
-  shellsContainer.innerHTML = ""
-  runShells.forEach((val, key) => {
-    const ret = document.createElement("button")
-    ret.classList = "btn btn-light"
-    ret.textContent = `${key} running in ${runnerShells.get(key)}`
-    shellsContainer.appendChild(ret)
-    ret.addEventListener('click', () => {
-      ipcRenderer.send('terminal.window.add', key);
+const updateShells = ([e]) => {
+  if (e.constructor.name === "YMapEvent") {
+    shellsContainer.innerHTML = ""
+    runShells.forEach((val, key) => {
+      const ret = document.createElement("button")
+      ret.classList = "btn btn-light"
+      ret.textContent = `${key} running in ${runnerShells.get(key)}`
+      shellsContainer.appendChild(ret)
+      ret.addEventListener('click', () => {
+        ipcRenderer.send('terminal.window.add', key);
+      })
     })
-  })
+  } else if (currentTestScenario === 4) {
+    const targetShellID = Array.from(e.currentTarget._map.keys())[0];
+    for (const delta of e.delta) {
+      if (delta.insert) {
+        const timeInput = parseInt(delta.insert)
+        const timeDiff = Date.now() - timeInput;
+        log.info(`shellProcess,${targetShellID},${timeDiff}`)
+      }
+    }
+  }
   if (subscribedTerminalId) {
     updateSubscribed()
   }
@@ -148,9 +155,17 @@ const enterRoom = ({roomName, username}, newDoc = true) => {
   })
   const state = EditorState.create({
     doc: ytext.toString(),
-    extensions: [keymap.of([...yUndoManagerKeymap, indentWithTab]), basicSetup,
-      cpp(), yCollab(ytext, provider.awareness)
-      // oneDark
+    extensions: testPlugins !== null ? [
+      keymap.of([...yUndoManagerKeymap, indentWithTab]),
+      basicSetup,
+      cpp(),
+      yCollab(ytext, provider.awareness),
+      testPlugins()
+    ] : [
+      keymap.of([...yUndoManagerKeymap, indentWithTab]),
+      basicSetup,
+      cpp(),
+      yCollab(ytext, provider.awareness)
     ]
   })
   codemirrorView = new EditorView({
@@ -284,13 +299,346 @@ ipcRenderer.on('terminal.update', (event, uuid, data) => {
   history.push(data)
 })
 
+/**
+ * Tests Starts Here
+ */
+
+
+const randRange = (l, r) => {
+  return randInt(r - l + 1) + l;
+}
+
+const log = require('electron-log');
+const {rand, uuidv4} = require("lib0/random");
+
+const randomCharacters = '\n\n\n\nABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789{}()+=*&^%-#/<>;"\'[]';
+const randomLen = randomCharacters.length
 const testButton = document.getElementById("test-button")
-testButton.addEventListener("click", () => {
+const randInt = (len) => {
+  return Math.floor(Math.random() * len);
+}
+
+// Scenario One Functions
+let lastUpdateTimestamp;
+
+const scenarioOnePlugins = () => {
+  return ViewPlugin.fromClass(class {
+    constructor(view) {
+    }
+
+    update(update) {
+      if (update.docChanged) {
+        lastUpdateTimestamp = Date.now().toString()
+      }
+    }
+  })
+}
+
+const insertRandom = (l, r) => {
+  const documentLength = (codemirrorView.state.doc.length);
+  const insertPosition = randInt(documentLength + 1)
+  let insertAmount = randRange(l, r)
+  // let insertAmount = 1;
+  let insertText = "";
+  while (insertAmount--) {
+    const ranPos = randInt(randomLen);
+    insertText += randomCharacters[ranPos]
+  }
   codemirrorView.dispatch({
     changes: {
-      from: 0,
-      to: 0,
-      insert: "gg gimang"
+      from: insertPosition, insert: insertText
     },
   })
+}
+
+const replaceRandom = (l, r) => {
+
+  const deleteAmount = randRange(l, r)
+  const documentLength = (codemirrorView.state.doc.length);
+  const deletePosition = randInt(documentLength + 1)
+
+  let insertAmount = randRange(l, r)
+  // let insertAmount = 1;
+  let insertText = "";
+  while (insertAmount--) {
+    const ranPos = randInt(randomLen);
+    insertText += randomCharacters[ranPos]
+  }
+  codemirrorView.dispatch({
+    changes: {
+      from: deletePosition,
+      to: min(deletePosition + deleteAmount, documentLength),
+      insert: insertText
+    },
+  })
+}
+
+const deleteRandom = (l, r) => {
+
+  let deleteAmount = randRange(l, r)
+  const documentLength = (codemirrorView.state.doc.length);
+  const deletePosition = randInt(documentLength + 1)
+
+  codemirrorView.dispatch({
+    changes: {
+      from: deletePosition,
+      to: min(deletePosition + deleteAmount, documentLength)
+    },
+  })
+}
+
+// Scenario Three Functions
+
+const scenarioThreePlugins = () => {
+  return ViewPlugin.fromClass(class {
+    constructor(view) {
+    }
+
+    update(update) {
+      if (update.docChanged) {
+        lastUpdateTimestamp = Date.now().toString()
+        for (const inserted of update.changes.inserted) {
+          try {
+            for (const timestamp of inserted.text) {
+              if (timestamp === "") {
+                continue;
+              }
+              const splitted = timestamp.split(",")
+              if (splitted.length !== 2) {
+                continue
+              }
+              const duration = Date.now() - parseInt(splitted[0]);
+              log.info(duration, splitted[1])
+            }
+          } catch {
+          }
+        }
+      }
+    }
+  })
+}
+
+const insertTimestamp = () => {
+  const insertText = Date.now().toString() + ',' + currentID + '\n'
+  codemirrorView.dispatch({
+    changes: {
+      from: 0, insert: insertText
+    },
+  })
+}
+
+const insertTimestampWithDeleteRandom = (l, r) => {
+  const insertText = Date.now().toString() + ',' + currentID + '\n'
+
+  let deleteAmount = randRange(l, r)
+  const documentLength = (codemirrorView.state.doc.length);
+  const deletePosition = randInt(documentLength + 1)
+
+  codemirrorView.dispatch({
+    changes: {
+      from: deletePosition,
+      to: min(deletePosition + deleteAmount, documentLength),
+      insert: insertText
+    },
+  })
+}
+
+const stableStringify = require('fast-stable-stringify');
+const {min} = require("lib0/math");
+const {stringify} = require("lib0/json");
+
+// This is a simple, *insecure* hash that's short, fast, and has no dependencies.
+// For algorithmic use, where security isn't needed, it's way simpler than sha1 (and all its deps)
+// or similar, and with a short, clean (base 36 alphanumeric) result.
+// Loosely based on the Java version; see
+// https://stackoverflow.com/questions/6122571/simple-non-secure-hash-function-for-javascript
+const simpleHash = str => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash &= hash; // Convert to 32bit integer
+  }
+  return new Uint32Array([hash])[0].toString(36);
+};
+
+const SECOND = 1000
+const MINUTE = 60 * SECOND
+
+const goDisconnect = (startDisconnectTime, disconnectDuration) => {
+  setTimeout(() => {
+    connectionButton.click()
+    log.info(`Disconnecting: ${Date.now().toString()}`)
+    setTimeout(() => {
+      connectionButton.click()
+      log.info(`Connecting: ${Date.now().toString()}`)
+    }, disconnectDuration)
+  }, startDisconnectTime)
+
+}
+
+const scenarioOne = () => {
+  goDisconnect(randRange(MINUTE, (MINUTE / 2) * 3), 10 * SECOND)
+  log.info("Scenario One - Test Start")
+  const testDuration = 3 * MINUTE; // 3 minutes
+  const insertEvery = SECOND / 10;
+  const intervalInsert = setInterval(() => {
+    const op = randInt(3)
+    if (op === 0) {
+      insertRandom(2, 5)
+    } else if (op === 1) {
+      deleteRandom(1, 3)
+    } else {
+      replaceRandom(2, 5)
+    }
+  }, insertEvery);
+  setTimeout(() => {
+    log.info(`End Test: ${Date.now().toString()}`)
+    clearInterval(intervalInsert)
+    // A minute timeout to check resolving
+    setTimeout(() => {
+      log.info(`Last Update: ${lastUpdateTimestamp}`)
+      log.info(`Exit Test: ${Date.now().toString()}`)
+      log.info(simpleHash(codemirrorView.state.doc.toString()))
+    }, MINUTE)
+  }, testDuration)
+}
+
+const scenarioTwoCode = `#include <unistd.h>
+#include <iostream>
+#include <cstdlib>
+using namespace std;
+#include <random>
+#include <chrono>
+mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count()); //For LL
+int main(){
+  const int OneSecond = 1e6;
+  const int HalfSecond = OneSecond>>1;
+  for(int i = 1;i <= 100;i++){
+    double sleepDuration = (rng()%OneSecond) + HalfSecond;
+    usleep(sleepDuration);
+    cout << rng() << flush << endl;
+  }
+  return 0;
+}
+`;
+
+const scenarioTwo = () => {
+  spawnButton.click()
+  goDisconnect(randRange(10 * SECOND, 40 * SECOND), 20 * SECOND)
+  log.info("Scenario Two - Test Start")
+  const testDuration = 150 * SECOND
+  setTimeout(() => {
+    log.info(`End Test: ${Date.now().toString()}`)
+    // A minute timeout to check resolving
+    setTimeout(() => {
+      log.info(`Last Update: ${lastUpdateTimestamp}`)
+      log.info(`Exit Test: ${Date.now().toString()}`)
+      log.info(simpleHash(stableStringify(Object.fromEntries(runShells))))
+    }, MINUTE)
+  }, testDuration)
+}
+
+const scenarioThree = () => {
+  log.info("Scenario Three - Test Start")
+  const testDuration = MINUTE; // 3 minutes
+  const intervalInsert = setInterval(() => {
+    const op = randInt(2)
+    if (op === 0) {
+      insertTimestamp()
+    } else {
+      insertTimestampWithDeleteRandom(10, 15)
+    }
+  }, SECOND);
+  setTimeout(() => {
+    log.info(`End Test: ${Date.now().toString()}`)
+    clearInterval(intervalInsert)
+    // A minute timeout to check resolving
+    setTimeout(() => {
+      log.info(`Last Update: ${lastUpdateTimestamp}`)
+      log.info(`Exit Test: ${Date.now().toString()}`)
+      log.info(simpleHash(codemirrorView.state.doc.toString()))
+    }, MINUTE)
+  }, testDuration)
+}
+
+const scenarioFourCode = `#include <unistd.h>
+#include <iostream>
+#include <cstdlib>
+#include <random>
+#include <chrono>
+using namespace std;
+using namespace chrono;
+mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count()); //For LL
+int main(){
+  const int OneSecond = 1e6;
+  const int HalfSecond = OneSecond>>1;
+  for(int i = 1;i <= 100;i++){
+    double sleepDuration = (rng()%OneSecond) + HalfSecond;
+    usleep(sleepDuration);
+    milliseconds ms = duration_cast< milliseconds >(
+        system_clock::now().time_since_epoch()
+    );
+    cout << ms.count() << endl;
+  }
+  return 0;
+}
+`;
+
+const scenarioFour = () => {
+  spawnButton.click()
+  log.info("Scenario Four - Test Start")
+  const testDuration = 15 * SECOND
+  setTimeout(() => {
+    log.info(`End Test: ${Date.now().toString()}`)
+    // A minute timeout to check resolving
+    setTimeout(() => {
+      log.info(`Last Update: ${lastUpdateTimestamp}`)
+      log.info(`Exit Test: ${Date.now().toString()}`)
+      log.info(simpleHash(stableStringify(Object.fromEntries(runShells))))
+    }, SECOND)
+  }, testDuration)
+}
+
+const testPlugins = null;
+const currentTestScenario = 4;
+const logID = uuidv4()
+
+const checker = () => {
+  if (codemirrorView && currentID) {
+    log.transports.file.resolvePath = () => `out/${logID}.log`
+    log.info("Inserting test for " + currentID)
+    log.info("logID is " + logID)
+    const msLeft = Date.parse("2022-10-28T13:54:20.000+07:00") - Date.now()
+    // setTimeout(scenarioOne, msLeft)
+    // setTimeout(() => {
+    //   codemirrorView.dispatch({
+    //     changes: {
+    //       from: 0,
+    //       to: codemirrorView.state.doc.length,
+    //       insert: scenarioTwoCode
+    //     },
+    //   })
+    // }, msLeft - 10 * SECOND)
+    // setTimeout(scenarioTwo, msLeft)
+    // setTimeout(scenarioThree, msLeft)
+    setTimeout(() => {
+      codemirrorView.dispatch({
+        changes: {
+          from: 0,
+          to: codemirrorView.state.doc.length,
+          insert: scenarioFourCode
+        },
+      })
+    }, msLeft - 10 * SECOND)
+    setTimeout(scenarioFour, msLeft)
+  } else {
+    setTimeout(checker, SECOND)
+  }
+}
+
+checker()
+
+window.addEventListener('load', () => {
+  enterRoom(getEnterState())
 })
