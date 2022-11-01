@@ -882,7 +882,7 @@ const goDisconnect = (startDisconnectTime, disconnectDuration) => {
 }
 
 const scenarioOne = () => {
-  goDisconnect(randRange(MINUTE, (MINUTE / 2) * 3), 10 * SECOND)
+  goDisconnect(randRange(MINUTE, (MINUTE / 2) * 3), 30 * SECOND)
   log.info("Scenario One - Test Start")
   const testDuration = 3 * MINUTE; // 3 minutes
   const insertEvery = SECOND / 10;
@@ -1017,7 +1017,7 @@ const checker = () => {
     log.transports.file.resolvePath = () => `out/${logID}.log`
     log.info("Inserting test for " + currentID)
     log.info("logID is " + logID)
-    const msLeft = Date.parse("2022-11-01T21:30:00.000+07:00") - Date.now()
+    const msLeft = Date.parse("2022-11-01T21:32:00.000+07:00") - Date.now()
     setTimeout(scenarioOne, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
