@@ -600,8 +600,8 @@ const scenarioFour = () => {
   }, testDuration)
 }
 
-const testPlugins = null;
-const currentTestScenario = 4;
+const testPlugins = scenarioThreePlugins;
+const currentTestScenario = 3;
 const logID = uuidv4()
 
 const checker = () => {
@@ -621,17 +621,17 @@ const checker = () => {
     //   })
     // }, msLeft - 10 * SECOND)
     // setTimeout(scenarioTwo, msLeft)
-    // setTimeout(scenarioThree, msLeft)
-    setTimeout(() => {
-      codemirrorView.dispatch({
-        changes: {
-          from: 0,
-          to: codemirrorView.state.doc.length,
-          insert: scenarioFourCode
-        },
-      })
-    }, msLeft - 10 * SECOND)
-    setTimeout(scenarioFour, msLeft)
+    setTimeout(scenarioThree, msLeft)
+    // setTimeout(() => {
+    //   codemirrorView.dispatch({
+    //     changes: {
+    //       from: 0,
+    //       to: codemirrorView.state.doc.length,
+    //       insert: scenarioFourCode
+    //     },
+    //   })
+    // }, msLeft - 10 * SECOND)
+    // setTimeout(scenarioFour, msLeft)
   } else {
     setTimeout(checker, SECOND)
   }
