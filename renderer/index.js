@@ -1017,7 +1017,7 @@ const checker = () => {
     log.transports.file.resolvePath = () => `out/${logID}.log`
     log.info("Inserting test for " + currentID)
     log.info("logID is " + logID)
-    const msLeft = Date.parse("2022-11-03T01:57:00.000+07:00") - Date.now()
+    const msLeft = Date.parse("2022-11-03T02:05:00.000+07:00") - Date.now()
     setTimeout(scenarioOne, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
