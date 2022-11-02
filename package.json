@@ -10,7 +10,7 @@
     "make": "npm-forge make",
     "rebuild": "electron-rebuild",
     "gitdeps": "npm-update-git-deps && npm install",
-    "clean": "git pull && npm install && rm -rf out"
+    "clean": "git pull && npm install && rm -rf out && xvfb-run npm start"
   },
   "author": "Hocky Yudhiono",
   "license": "ISC",
