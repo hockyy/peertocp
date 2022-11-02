@@ -9,7 +9,8 @@
     "package": "electron-forge package",
     "make": "npm-forge make",
     "rebuild": "electron-rebuild",
-    "gitdeps": "npm-update-git-deps && npm install"
+    "gitdeps": "npm-update-git-deps && npm install",
+    "clean": "git pull && npm install && rm -rf out"
   },
   "author": "Hocky Yudhiono",
   "license": "ISC",
