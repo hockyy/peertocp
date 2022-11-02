@@ -14,7 +14,7 @@ const {EditorView, ViewPlugin, keymap} = require("@codemirror/view");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
-const TIMEOUT_WSCONN = 3000;
+const TIMEOUT_WSCONN = 1000;
 const Mutex = require('async-mutex').Mutex;
 
 const {
