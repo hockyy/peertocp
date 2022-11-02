@@ -14,7 +14,7 @@ const {EditorView, ViewPlugin, keymap} = require("@codemirror/view");
 const {cpp} = require("@codemirror/lang-cpp");
 const {indentWithTab} = require("@codemirror/commands");
 const termToHtml = require('term-to-html')
-const TIMEOUT_WSCONN = 1000;
+const TIMEOUT_WSCONN = 3000;
 const Mutex = require('async-mutex').Mutex;
 
 const {
@@ -1017,7 +1017,7 @@ const checker = () => {
     log.transports.file.resolvePath = () => `out/${logID}.log`
     log.info("Inserting test for " + currentID)
     log.info("logID is " + logID)
-    const msLeft = Date.parse("2022-11-03T01:46:00.000+07:00") - Date.now()
+    const msLeft = Date.parse("2022-11-03T01:56:00.000+07:00") - Date.now()
     setTimeout(scenarioOne, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
