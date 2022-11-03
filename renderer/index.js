@@ -424,9 +424,10 @@ const scenarioThreePlugins = () => {
 
 const insertTimestamp = () => {
   const insertText = Date.now().toString() + ',' + currentID + '\n'
+  const deletePosition = randInt(documentLength + 1)
   codemirrorView.dispatch({
     changes: {
-      from: 0, insert: insertText
+      from: deletePosition, insert: insertText
     },
   })
 }
@@ -614,7 +615,7 @@ const checker = () => {
     log.transports.file.resolvePath = () => `out/${logID}.log`
     log.info("Inserting test for " + currentID)
     log.info("logID is " + logID)
-    const msLeft = Date.parse("2022-11-03T15:43:00.000+07:00") - Date.now()
+    const msLeft = Date.parse("2022-11-03T21:53:00.000+07:00") - Date.now()
     // setTimeout(scenarioOne, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
