@@ -603,8 +603,8 @@ const scenarioFour = () => {
   }, testDuration)
 }
 
-const testPlugins = null;
-const currentTestScenario = 2;
+const testPlugins = scenarioThreePlugins;
+const currentTestScenario = 3;
 const logID = uuidv4()
 
 const checker = () => {
@@ -614,17 +614,17 @@ const checker = () => {
     log.info("logID is " + logID)
     const msLeft = Date.parse("2022-11-03T16:09:00.000+07:00") - Date.now()
     // setTimeout(scenarioOne, msLeft)
-    setTimeout(() => {
-      codemirrorView.dispatch({
-        changes: {
-          from: 0,
-          to: codemirrorView.state.doc.length,
-          insert: scenarioTwoCode
-        },
-      })
-    }, 3 * SECOND)
-    setTimeout(scenarioTwo, msLeft)
-    // setTimeout(scenarioThree, msLeft)
+    // setTimeout(() => {
+    //   codemirrorView.dispatch({
+    //     changes: {
+    //       from: 0,
+    //       to: codemirrorView.state.doc.length,
+    //       insert: scenarioTwoCode
+    //     },
+    //   })
+    // }, 3 * SECOND)
+    // setTimeout(scenarioTwo, msLeft)
+    setTimeout(scenarioThree, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
     //     changes: {
