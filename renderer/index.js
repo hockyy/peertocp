@@ -101,6 +101,7 @@ const updatePeersButton = (peers) => {
 }
 
 const updateShells = ([e]) => {
+  lastUpdateTimestamp = Date.now().toString()
   if (e.constructor.name === "YMapEvent") {
     shellsContainer.innerHTML = ""
     runShells.forEach((val, key) => {
@@ -447,6 +448,7 @@ const insertTimestampWithDeleteRandom = (l, r) => {
 const stableStringify = require('fast-stable-stringify');
 const {min} = require("lib0/math");
 const {stringify} = require("lib0/json");
+const {last} = require("lib0/array");
 
 // This is a simple, *insecure* hash that's short, fast, and has no dependencies.
 // For algorithmic use, where security isn't needed, it's way simpler than sha1 (and all its deps)
