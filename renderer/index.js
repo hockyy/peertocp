@@ -701,7 +701,7 @@ ipcRenderer.on('terminal.update', (event, uuid, data) => {
       const timeInput = parseInt(line)
       if (!isNaN(timeInput)) {
         const timeDiff = Date.now() - timeInput;
-        log.info(`shellProcess,${shellUpdate.uuid},${timeDiff}`)
+        log.info(`shellProcess,${uuid},${timeDiff}`)
       }
     }
     history.push({
