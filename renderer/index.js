@@ -546,25 +546,32 @@ const scenarioTwo = () => {
 const scenarioThree = () => {
   log.info("Scenario Three - Test Start")
   const testDuration = 2 * MINUTE; // 2 minutes
-  const intervalInsert = setInterval(() => {
-    const op = randInt(2)
-    if (op === 0) {
-      insertTimestamp()
-    } else {
-      insertTimestampWithDeleteRandom(10, 15)
+  let isDone = 0
+  const insertFunc = () => {
+    if (!isDone) {
+      const op = randInt(2)
+      if (op === 0) {
+        insertTimestamp()
+      } else {
+        insertTimestampWithDeleteRandom(10, 15)
+      }
+      const randomDelay = randRange(500, 1000);
+      setTimeout(insertFunc, randomDelay)
     }
-  }, SECOND);
+  }
+  insertFunc()
   setTimeout(() => {
     log.info(`End Test: ${Date.now().toString()}`)
-    clearInterval(intervalInsert)
+    isDone = 1;
     // A minute timeout to check resolving
     setTimeout(() => {
       log.info(`Last Update: ${lastUpdateTimestamp}`)
       log.info(`Exit Test: ${Date.now().toString()}`)
       log.info(simpleHash(codemirrorView.state.doc.toString()))
-    }, MINUTE)
+    }, 20 * SECOND)
   }, testDuration)
 }
+
 
 const scenarioFourCode = `#include <unistd.h>
 #include <iostream>
