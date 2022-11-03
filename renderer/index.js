@@ -836,9 +836,10 @@ const scenarioThreePlugins = () => {
 
 const insertTimestamp = () => {
   const insertText = Date.now().toString() + ',' + currentID + '\n'
+  const insertPosition = randInt(codemirrorView.state.doc.length + 1)
   codemirrorView.dispatch({
     changes: {
-      from: 0, insert: insertText
+      from: insertPosition, insert: insertText
     },
   })
 }
