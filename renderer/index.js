@@ -101,6 +101,7 @@ const updatePeersButton = (peers) => {
 }
 
 const updateShells = ([e]) => {
+  lastUpdateTimestamp = Date.now().toString()
   if (e.constructor.name === "YMapEvent") {
     shellsContainer.innerHTML = ""
     runShells.forEach((val, key) => {
