@@ -609,8 +609,8 @@ const checker = () => {
     log.transports.file.resolvePath = () => `out/${logID}.log`
     log.info("Inserting test for " + currentID)
     log.info("logID is " + logID)
-    const msLeft = Date.parse("2022-11-03T01:04:00.000+07:00") - Date.now()
-    setTimeout(scenarioOne, msLeft)
+    let msLeft = Date.parse("2022-11-03T01:04:00.000+07:00") - Date.now()
+    // setTimeout(scenarioOne, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
     //     changes: {
@@ -619,7 +619,7 @@ const checker = () => {
     //       insert: scenarioTwoCode
     //     },
     //   })
-    // }, msLeft - 10 * SECOND)
+    // }, 3 * SECOND)
     // setTimeout(scenarioTwo, msLeft)
     // setTimeout(scenarioThree, msLeft)
     // setTimeout(() => {
@@ -630,7 +630,7 @@ const checker = () => {
     //       insert: scenarioFourCode
     //     },
     //   })
-    // }, msLeft - 10 * SECOND)
+    // }, 3 * SECOND)
     // setTimeout(scenarioFour, msLeft)
   } else {
     setTimeout(checker, SECOND)
