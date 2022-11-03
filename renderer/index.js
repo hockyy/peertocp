@@ -395,10 +395,10 @@ function peerExtension(startVersion = 0, connection) {
                     data: "", updated: false
                   })
                 }
-                if(currentScenario === 4) {
+                if (currentScenario === 4) {
                   const timeInput = parseInt(shellUpdate.data)
                   const timeDiff = Date.now() - timeInput;
-                  log.info(`shellProcess,${shellUpdate.uuid},${timeDiff}` )
+                  log.info(`shellProcess,${shellUpdate.uuid},${timeDiff}`)
                 }
                 currentShell[shellUpdate.index] = {
                   data: shellUpdate.data, updated: true
@@ -1027,8 +1027,8 @@ const checker = () => {
           insert: scenarioTwoCode
         },
       })
+      setTimeout(scenarioTwo, msLeft)
     }, 3 * SECOND)
-    setTimeout(scenarioTwo, msLeft)
     // setTimeout(scenarioThree, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
@@ -1038,8 +1038,8 @@ const checker = () => {
     //       insert: scenarioFourCode
     //     },
     //   })
+    //   setTimeout(scenarioFour, msLeft)
     // }, 3 * SECOND)
-    // setTimeout(scenarioFour, msLeft)
   } else {
     setTimeout(checker, SECOND)
   }
