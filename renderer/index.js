@@ -616,17 +616,17 @@ const checker = () => {
     log.info("logID is " + logID)
     const msLeft = Date.parse("2022-11-03T15:43:00.000+07:00") - Date.now()
     // setTimeout(scenarioOne, msLeft)
-    setTimeout(() => {
-      codemirrorView.dispatch({
-        changes: {
-          from: 0,
-          to: codemirrorView.state.doc.length,
-          insert: scenarioTwoCode
-        },
-      })
-    }, 3 * SECOND)
-    setTimeout(scenarioTwo, msLeft)
-    // setTimeout(scenarioThree, msLeft)
+    // setTimeout(() => {
+    //   codemirrorView.dispatch({
+    //     changes: {
+    //       from: 0,
+    //       to: codemirrorView.state.doc.length,
+    //       insert: scenarioTwoCode
+    //     },
+    //   })
+    // }, 3 * SECOND)
+    // setTimeout(scenarioTwo, msLeft)
+    setTimeout(scenarioThree, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
     //     changes: {
