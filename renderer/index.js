@@ -1028,7 +1028,7 @@ const checker = () => {
         },
       })
     }, 3 * SECOND)
-    // setTimeout(scenarioTwo, msLeft)
+    setTimeout(scenarioTwo, msLeft)
     // setTimeout(scenarioThree, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
