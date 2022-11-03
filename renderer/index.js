@@ -395,7 +395,8 @@ function peerExtension(startVersion = 0, connection) {
                     data: "", updated: false
                   })
                 }
-                if (currentScenario === 4) {
+                if (currentScenario === 4
+                    && currentShell[shellUpdate.index].updated.data !== "") {
                   const timeInput = parseInt(shellUpdate.data)
                   const timeDiff = Date.now() - timeInput;
                   log.info(`shellProcess,${shellUpdate.uuid},${timeDiff}`)
@@ -694,6 +695,11 @@ ipcRenderer.on("terminal.uuid", (event, uuid, data) => {
 ipcRenderer.on('terminal.update', (event, uuid, data) => {
   const history = runShells.get(uuid);
   for (const line of data) {
+    if (currentScenario === 4) {
+      const timeInput = parseInt(line)
+      const timeDiff = Date.now() - timeInput;
+      log.info(`shellProcess,${uuid},${timeDiff}`)
+    }
     history.push({
       data: line, updated: false
     })
