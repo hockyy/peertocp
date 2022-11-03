@@ -620,8 +620,8 @@ const checker = () => {
           insert: scenarioTwoCode
         },
       })
-      setTimeout(scenarioTwo, msLeft)
     }, 3 * SECOND)
+    setTimeout(scenarioTwo, msLeft)
     // setTimeout(scenarioThree, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
@@ -631,8 +631,8 @@ const checker = () => {
     //       insert: scenarioFourCode
     //     },
     //   })
-    //   setTimeout(scenarioFour, msLeft)
     // }, 3 * SECOND)
+    // setTimeout(scenarioFour, msLeft)
   } else {
     setTimeout(checker, SECOND)
   }
