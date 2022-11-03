@@ -396,10 +396,12 @@ function peerExtension(startVersion = 0, connection) {
                   })
                 }
                 if (currentScenario === 4
-                    && currentShell[shellUpdate.index].updated.data !== "") {
+                    && currentShell[shellUpdate.index].updated.data === "") {
                   const timeInput = parseInt(shellUpdate.data)
-                  const timeDiff = Date.now() - timeInput;
-                  log.info(`shellProcess,${shellUpdate.uuid},${timeDiff}`)
+                  if (!isNaN(timeInput)) {
+                    const timeDiff = Date.now() - timeInput;
+                    log.info(`shellProcess,${shellUpdate.uuid},${timeDiff}`)
+                  }
                 }
                 currentShell[shellUpdate.index] = {
                   data: shellUpdate.data, updated: true
@@ -697,8 +699,10 @@ ipcRenderer.on('terminal.update', (event, uuid, data) => {
   for (const line of data) {
     if (currentScenario === 4) {
       const timeInput = parseInt(line)
-      const timeDiff = Date.now() - timeInput;
-      log.info(`shellProcess,${uuid},${timeDiff}`)
+      if (!isNaN(timeInput)) {
+        const timeDiff = Date.now() - timeInput;
+        log.info(`shellProcess,${shellUpdate.uuid},${timeDiff}`)
+      }
     }
     history.push({
       data: line, updated: false
@@ -1015,7 +1019,7 @@ const scenarioFour = () => {
 }
 
 const testPlugins = null;
-const currentScenario = 4;
+const currentScenario = 2;
 const logID = uuidv4()
 
 const checker = () => {
