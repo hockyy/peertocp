@@ -546,7 +546,7 @@ const scenarioTwo = () => {
 
 const scenarioThree = () => {
   log.info("Scenario Three - Test Start")
-  const testDuration = MINUTE; // 3 minutes
+  const testDuration = 2 * MINUTE; // 2 minutes
   const intervalInsert = setInterval(() => {
     const op = randInt(2)
     if (op === 0) {
@@ -626,7 +626,8 @@ const checker = () => {
     //   })
     // }, 3 * SECOND)
     // setTimeout(scenarioTwo, msLeft)
-    setTimeout(scenarioThree, msLeft)
+    const randomDelay = randInt(1000)
+    setTimeout(scenarioThree, msLeft + randomDelay)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
     //     changes: {
