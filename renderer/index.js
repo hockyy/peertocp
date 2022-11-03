@@ -118,8 +118,10 @@ const updateShells = ([e]) => {
     for (const delta of e.delta) {
       if (delta.insert) {
         const timeInput = parseInt(delta.insert)
-        const timeDiff = Date.now() - timeInput;
-        log.info(`shellProcess,${targetShellID},${timeDiff}`)
+        if (!isNaN(timeInput)) {
+          const timeDiff = Date.now() - timeInput;
+          log.info(`shellProcess,${targetShellID},${timeDiff}`)
+        }
       }
     }
   }
