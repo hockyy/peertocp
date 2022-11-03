@@ -600,8 +600,8 @@ const scenarioFour = () => {
   }, testDuration)
 }
 
-const testPlugins = scenarioOnePlugins;
-const currentTestScenario = 1;
+const testPlugins = null;
+const currentTestScenario = 2;
 const logID = uuidv4()
 
 const checker = () => {
@@ -609,18 +609,18 @@ const checker = () => {
     log.transports.file.resolvePath = () => `out/${logID}.log`
     log.info("Inserting test for " + currentID)
     log.info("logID is " + logID)
-    let msLeft = Date.parse("2022-11-03T01:04:00.000+07:00") - Date.now()
+    const msLeft = Date.parse("2022-11-03T13:54:00.000+07:00") - Date.now()
     // setTimeout(scenarioOne, msLeft)
-    // setTimeout(() => {
-    //   codemirrorView.dispatch({
-    //     changes: {
-    //       from: 0,
-    //       to: codemirrorView.state.doc.length,
-    //       insert: scenarioTwoCode
-    //     },
-    //   })
-    // }, 3 * SECOND)
-    // setTimeout(scenarioTwo, msLeft)
+    setTimeout(() => {
+      codemirrorView.dispatch({
+        changes: {
+          from: 0,
+          to: codemirrorView.state.doc.length,
+          insert: scenarioTwoCode
+        },
+      })
+    }, 3 * SECOND)
+    setTimeout(scenarioTwo, msLeft)
     // setTimeout(scenarioThree, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
