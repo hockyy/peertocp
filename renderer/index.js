@@ -1015,7 +1015,7 @@ const scenarioFour = () => {
 }
 
 const testPlugins = null;
-const currentScenario = 2;
+const currentScenario = 4;
 const logID = uuidv4()
 
 const checker = () => {
@@ -1023,7 +1023,7 @@ const checker = () => {
     log.transports.file.resolvePath = () => `out/${logID}.log`
     log.info("Inserting test for " + currentID)
     log.info("logID is " + logID)
-    const msLeft = Date.parse("2022-11-03T13:54:00.000+07:00") - Date.now()
+    const msLeft = Date.parse("2022-11-03T15:10:00.000+07:00") - Date.now()
     // setTimeout(scenarioOne, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
