@@ -600,7 +600,7 @@ int main(){
 const scenarioFour = () => {
   spawnButton.click()
   log.info("Scenario Four - Test Start")
-  const testDuration = 15 * SECOND
+  const testDuration = 150 * SECOND
   setTimeout(() => {
     log.info(`End Test: ${Date.now().toString()}`)
     // A minute timeout to check resolving
@@ -608,7 +608,7 @@ const scenarioFour = () => {
       log.info(`Last Update: ${lastUpdateTimestamp}`)
       log.info(`Exit Test: ${Date.now().toString()}`)
       log.info(simpleHash(stableStringify(Object.fromEntries(runShells))))
-    }, SECOND)
+    }, 30 * SECOND)
   }, testDuration)
 }
 
