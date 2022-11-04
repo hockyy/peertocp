@@ -633,18 +633,18 @@ const checker = () => {
     //   })
     // }, 3 * SECOND)
     // setTimeout(scenarioTwo, msLeft)
-    const randomDelay = randInt(1000)
-    setTimeout(scenarioThree, msLeft + randomDelay)
-    // setTimeout(() => {
-    //   codemirrorView.dispatch({
-    //     changes: {
-    //       from: 0,
-    //       to: codemirrorView.state.doc.length,
-    //       insert: scenarioFourCode
-    //     },
-    //   })
-    // }, 3 * SECOND)
-    // setTimeout(scenarioFour, msLeft)
+    // const randomDelay = randInt(1000)
+    // setTimeout(scenarioThree, msLeft + randomDelay)
+    setTimeout(() => {
+      codemirrorView.dispatch({
+        changes: {
+          from: 0,
+          to: codemirrorView.state.doc.length,
+          insert: scenarioFourCode
+        },
+      })
+    }, 3 * SECOND)
+    setTimeout(scenarioFour, msLeft)
   } else {
     setTimeout(checker, SECOND)
   }
