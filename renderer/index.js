@@ -396,7 +396,7 @@ function peerExtension(startVersion = 0, connection) {
                   })
                 }
                 if (currentTestScenario === 4
-                    && currentShell[shellUpdate.index].updated.data === "") {
+                    && currentShell[shellUpdate.index].data === "") {
                   const timeInput = parseInt(shellUpdate.data)
                   if (!isNaN(timeInput)) {
                     const timeDiff = Date.now() - timeInput;
@@ -1036,7 +1036,7 @@ const checker = () => {
     log.transports.file.resolvePath = () => `out/${logID}.log`
     log.info("Inserting test for " + currentID)
     log.info("logID is " + logID)
-    const msLeft = Date.parse("2022-11-04T15:15:00.000+07:00") - Date.now()
+    const msLeft = Date.parse("2022-11-04T15:26:00.000+07:00") - Date.now()
     // setTimeout(scenarioOne, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
