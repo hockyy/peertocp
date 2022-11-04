@@ -115,7 +115,6 @@ const updateShells = ([e]) => {
     })
   } else if (currentTestScenario === 4) {
     const targetShellID = e.target._item.parentSub;
-    console.log(targetShellID, e.delta)
     for (const delta of e.delta) {
       if (delta.insert) {
         const timeInput = parseInt(delta.insert)
