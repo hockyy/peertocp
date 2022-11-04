@@ -1014,7 +1014,7 @@ int main(){
 const scenarioFour = () => {
   spawnButton.click()
   log.info("Scenario Four - Test Start")
-  const testDuration = 15 * SECOND
+  const testDuration = 150 * SECOND
   setTimeout(() => {
     log.info(`End Test: ${Date.now().toString()}`)
     // A minute timeout to check resolving
@@ -1022,12 +1022,12 @@ const scenarioFour = () => {
       log.info(`Last Update: ${lastUpdateTimestamp}`)
       log.info(`Exit Test: ${Date.now().toString()}`)
       log.info(simpleHash(stableStringify(Object.fromEntries(runShells))))
-    }, SECOND)
+    }, 30 * SECOND)
   }, testDuration)
 }
 
-const testPlugins = scenarioThreePlugins;
-const currentScenario = 3;
+const testPlugins = null;
+const currentScenario = 4;
 const logID = uuidv4()
 
 const checker = () => {
@@ -1047,18 +1047,18 @@ const checker = () => {
     //   })
     // }, 3 * SECOND)
     // setTimeout(scenarioTwo, msLeft)
-    const randomDelay = randInt(1000)
-    setTimeout(scenarioThree, msLeft + randomDelay)
-    // setTimeout(() => {
-    //   codemirrorView.dispatch({
-    //     changes: {
-    //       from: 0,
-    //       to: codemirrorView.state.doc.length,
-    //       insert: scenarioFourCode
-    //     },
-    //   })
-    // }, 3 * SECOND)
-    // setTimeout(scenarioFour, msLeft)
+    // const randomDelay = randInt(1000)
+    // setTimeout(scenarioThree, msLeft + randomDelay)
+    setTimeout(() => {
+      codemirrorView.dispatch({
+        changes: {
+          from: 0,
+          to: codemirrorView.state.doc.length,
+          insert: scenarioFourCode
+        },
+      })
+    }, 3 * SECOND)
+    setTimeout(scenarioFour, msLeft)
   } else {
     setTimeout(checker, SECOND)
   }
