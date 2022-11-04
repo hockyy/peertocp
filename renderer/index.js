@@ -114,7 +114,8 @@ const updateShells = ([e]) => {
       })
     })
   } else if (currentTestScenario === 4) {
-    const targetShellID = Array.from(e.currentTarget._map.keys())[0];
+    const targetShellID = e.target._item.parentSub;
+    console.log(targetShellID, e.delta)
     for (const delta of e.delta) {
       if (delta.insert) {
         const timeInput = parseInt(delta.insert)
@@ -621,7 +622,7 @@ const checker = () => {
     log.transports.file.resolvePath = () => `out/${logID}.log`
     log.info("Inserting test for " + currentID)
     log.info("logID is " + logID)
-    const msLeft = Date.parse("2022-11-04T11:20:00.000+07:00") - Date.now()
+    const msLeft = Date.parse("2022-11-04T11:43:00.000+07:00") - Date.now()
     // setTimeout(scenarioOne, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
