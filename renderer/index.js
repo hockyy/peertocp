@@ -395,7 +395,7 @@ function peerExtension(startVersion = 0, connection) {
                     data: "", updated: false
                   })
                 }
-                if (currentScenario === 4
+                if (currentTestScenario === 4
                     && currentShell[shellUpdate.index].updated.data === "") {
                   const timeInput = parseInt(shellUpdate.data)
                   if (!isNaN(timeInput)) {
@@ -697,7 +697,7 @@ ipcRenderer.on("terminal.uuid", (event, uuid, data) => {
 ipcRenderer.on('terminal.update', (event, uuid, data) => {
   const history = runShells.get(uuid);
   for (const line of data) {
-    if (currentScenario === 4) {
+    if (currentTestScenario === 4) {
       const timeInput = parseInt(line)
       if (!isNaN(timeInput)) {
         const timeDiff = Date.now() - timeInput;
@@ -1027,7 +1027,7 @@ const scenarioFour = () => {
 }
 
 const testPlugins = null;
-const currentScenario = 4;
+const currentTestScenario = 4;
 const logID = uuidv4()
 
 const checker = () => {
