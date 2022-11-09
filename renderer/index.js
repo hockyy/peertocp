@@ -622,7 +622,7 @@ const checker = () => {
     log.transports.file.resolvePath = () => `out/${logID}.log`
     log.info("Inserting test for " + currentID)
     log.info("logID is " + logID)
-    const msLeft = Date.parse("2022-11-09T22:49:00.000+07:00") - Date.now()
+    const msLeft = Date.parse("2022-11-09T22:55:00.000+07:00") - Date.now()
     // setTimeout(scenarioOne, msLeft)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
@@ -645,7 +645,7 @@ const checker = () => {
     //     },
     //   })
     // }, 3 * SECOND)
-    setTimeout(scenarioFour, msLeft)
+    // setTimeout(scenarioFour, msLeft)
   } else {
     setTimeout(checker, SECOND)
   }
