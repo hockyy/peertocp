@@ -1,5 +1,21 @@
 # PeerToCP
 
+## User Interface and How to Interact
+
+<img src="README.assets/image-20221122001647564.png" alt="image-20221122001647564" style="zoom:33%;" />
+
+This is the interface when first running the app. When you don't enter any room you'll be automatically put into the room `welcome-room`, to set up a username, put it inside the input box, and reconnect by doing <strong style="color:red;">Disconnect</strong> by pressing the red button, and reconnect again by pressing the green <strong style="color:green;">Connect</strong> button.
+
+You can code in C++, and compile it in your local by pressing the <strong style="color:blue;">Spawn</strong> Button, or compile it in other user's PC by pressing <strong style="color:orange;">Request Run</strong>. Next, there will be compile message showing up if it successfully compiled. See that this compile is cross-platform and can be run in Windows, GNU/Linux and MacOS.
+
+Next, there will be some active shells showing at the bottom of the side bar. You can interact with it in real time interactively event if you are not the host of the program.
+
+![image-20221122002259074](README.assets/image-20221122002259074.png)
+
+You can also run it in local and disconnect, while keeping the program running. This will auto update and still be running and can be interact with again after you reconnected.
+
+## Informations
+
 Electron Project for WebRTC Based Code Editor, Compiler, and C++ runner.
 There are 3 versions of this app:
 
