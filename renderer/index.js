@@ -101,6 +101,19 @@ const updatePeersButton = (peers) => {
   })
 }
 
+const updateRunner = () => {
+  shellsContainer.innerHTML = ""
+  runShells.forEach((val, key) => {
+    const ret = document.createElement("button")
+    ret.classList = "btn btn-light"
+    ret.textContent = `${key} running in ${runnerShells.get(key)}`
+    shellsContainer.appendChild(ret)
+    ret.addEventListener('click', () => {
+      ipcRenderer.send('terminal.window.add', key);
+    })
+  })
+}
+
 const updateShells = ([e]) => {
   lastUpdateTimestamp = Date.now().toString()
   if (e.constructor.name === "YMapEvent") {
@@ -180,13 +193,13 @@ const enterRoom = ({roomName, username}, newDoc = true) => {
 
   try {
     for (const locShell of runnerShells.keys()) {
-      if(localShell.has(locShell)) {
+      if (localShell.has(locShell)) {
         runnerShells.set(locShell, currentID)
       }
     }
   } catch (e) {
   }
-  runShells.observeDeep(updateShells)
+  runShells.observeDeep(updateRunner)
   runnerShells.observeDeep(updateShells)
 }
 
@@ -208,6 +221,7 @@ connectionButton.addEventListener('click', () => {
     const enterState = getEnterState()
     codemirrorView.destroy()
     if (enterState.roomName !== currentState.roomName) {
+      console.log("here")
       enterRoom(enterState)
     } else {
       enterRoom(enterState, false)
