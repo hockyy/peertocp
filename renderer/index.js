@@ -1027,7 +1027,7 @@ const scenarioFour = () => {
   }, testDuration)
 }
 
-const testPlugins = scenarioThreePlugins;
+const testPlugins = null;
 const currentTestScenario = null;
 const logID = uuidv4()
 
