@@ -634,8 +634,8 @@ const checker = () => {
     //   })
     // }, 3 * SECOND)
     // setTimeout(scenarioTwo, msLeft)
-    const randomDelay = randInt(1000)
-    setTimeout(scenarioThree, msLeft + randomDelay)
+    // const randomDelay = randInt(1000)
+    // setTimeout(scenarioThree, msLeft + randomDelay)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
     //     changes: {
@@ -651,7 +651,7 @@ const checker = () => {
   }
 }
 
-checker()
+// checker()
 
 window.addEventListener('load', () => {
   enterRoom(getEnterState())
