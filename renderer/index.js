@@ -825,7 +825,7 @@ const scenarioThreePlugins = () => {
                 continue
               }
               const duration = Date.now() - parseInt(splitted[0]);
-              // log.info(duration, splitted[1])
+              log.info(duration, splitted[1])
             }
           } catch {
           }
@@ -884,10 +884,10 @@ const MINUTE = 60 * SECOND
 const goDisconnect = (startDisconnectTime, disconnectDuration) => {
   setTimeout(() => {
     connectionButton.click()
-    // log.info(`Disconnecting: ${Date.now().toString()}`)
+    log.info(`Disconnecting: ${Date.now().toString()}`)
     setTimeout(() => {
       connectionButton.click()
-      // log.info(`Connecting: ${Date.now().toString()}`)
+      log.info(`Connecting: ${Date.now().toString()}`)
     }, disconnectDuration)
   }, startDisconnectTime)
 
@@ -923,13 +923,10 @@ const scenarioOne = () => {
 const scenarioTwoCode = `#include <unistd.h>
 #include <iostream>
 #include <cstdlib>
-
 using namespace std;
-
 #include <random>
 #include <chrono>
 mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count()); //For LL
-
 int main(){
   const int OneSecond = 1e6;
   const int HalfSecond = OneSecond>>1;
@@ -987,7 +984,6 @@ const scenarioThree = () => {
   }, testDuration)
 }
 
-
 const scenarioFourCode = `#include <unistd.h>
 #include <iostream>
 #include <cstdlib>
@@ -996,7 +992,6 @@ const scenarioFourCode = `#include <unistd.h>
 using namespace std;
 using namespace chrono;
 mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count()); //For LL
-
 int main(){
   const int OneSecond = 1e6;
   const int HalfSecond = OneSecond>>1;
@@ -1048,8 +1043,8 @@ const checker = () => {
     //   })
     // }, 3 * SECOND)
     // setTimeout(scenarioTwo, msLeft)
-    const randomDelay = randInt(1000)
-    setTimeout(scenarioThree, msLeft + randomDelay)
+    // const randomDelay = randInt(1000)
+    // setTimeout(scenarioThree, msLeft + randomDelay)
     // setTimeout(() => {
     //   codemirrorView.dispatch({
     //     changes: {
