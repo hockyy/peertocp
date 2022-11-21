@@ -682,7 +682,7 @@ ipcRenderer.on("terminal.unsubscribe", (event, id) => {
 
 // Set Up UUID after compile, meaning a shell is ready to be used
 ipcRenderer.on("terminal.uuid", (event, uuid, data) => {
-  log.info("spawning",uuid)
+  // log.info("spawning",uuid)
   runnerShells.set(uuid, {
     spawner: currentID, updated: false
   })
@@ -702,7 +702,7 @@ ipcRenderer.on('terminal.update', (event, uuid, data) => {
       const timeInput = parseInt(line)
       if (!isNaN(timeInput)) {
         const timeDiff = Date.now() - timeInput;
-        log.info(`shellProcess,${uuid},${timeDiff}`)
+        // log.info(`shellProcess,${uuid},${timeDiff}`)
       }
     }
     history.push({
@@ -825,7 +825,7 @@ const scenarioThreePlugins = () => {
                 continue
               }
               const duration = Date.now() - parseInt(splitted[0]);
-              log.info(duration, splitted[1])
+              // log.info(duration, splitted[1])
             }
           } catch {
           }
@@ -884,10 +884,10 @@ const MINUTE = 60 * SECOND
 const goDisconnect = (startDisconnectTime, disconnectDuration) => {
   setTimeout(() => {
     connectionButton.click()
-    log.info(`Disconnecting: ${Date.now().toString()}`)
+    // log.info(`Disconnecting: ${Date.now().toString()}`)
     setTimeout(() => {
       connectionButton.click()
-      log.info(`Connecting: ${Date.now().toString()}`)
+      // log.info(`Connecting: ${Date.now().toString()}`)
     }, disconnectDuration)
   }, startDisconnectTime)
 
@@ -1028,7 +1028,7 @@ const scenarioFour = () => {
 }
 
 const testPlugins = scenarioThreePlugins;
-const currentTestScenario = 3;
+const currentTestScenario = null;
 const logID = uuidv4()
 
 const checker = () => {
