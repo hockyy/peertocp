@@ -199,8 +199,8 @@ const enterRoom = ({roomName, username}, newDoc = true) => {
     }
   } catch (e) {
   }
-  runShells.observeDeep(updateRunner)
-  runnerShells.observeDeep(updateShells)
+  runShells.observeDeep(updateShells)
+  runnerShells.observeDeep(updateRunner)
 }
 
 connectionButton.addEventListener('click', () => {
