@@ -44,6 +44,7 @@ let currentState = {};
 let subscribedTerminalId;
 let subscribedSize;
 let ydoc;
+let localShell = new Set()
 
 /**
  * Generate random color
@@ -100,6 +101,19 @@ const updatePeersButton = (peers) => {
   })
 }
 
+const updateRunner = () => {
+  shellsContainer.innerHTML = ""
+  runShells.forEach((val, key) => {
+    const ret = document.createElement("button")
+    ret.classList = "btn btn-light"
+    ret.textContent = `${key} running in ${runnerShells.get(key)}`
+    shellsContainer.appendChild(ret)
+    ret.addEventListener('click', () => {
+      ipcRenderer.send('terminal.window.add', key);
+    })
+  })
+}
+
 const updateShells = ([e]) => {
   lastUpdateTimestamp = Date.now().toString()
   if (e.constructor.name === "YMapEvent") {
@@ -128,6 +142,18 @@ const updateShells = ([e]) => {
   if (subscribedTerminalId) {
     updateSubscribed()
   }
+}
+
+const syncShells = () => {
+  try {
+    for (const locShell of runnerShells.keys()) {
+      if (localShell.has(locShell)) {
+        runnerShells.set(locShell, currentID)
+      }
+    }
+  } catch (e) {
+  }
+  updateRunner()
 }
 
 const enterRoom = ({roomName, username}, newDoc = true) => {
@@ -176,7 +202,9 @@ const enterRoom = ({roomName, username}, newDoc = true) => {
     parent: /** @type {HTMLElement} */ (document.querySelector('#editor'))
   })
 
+  if (!newDoc) syncShells()
   runShells.observeDeep(updateShells)
+  // updateShells()
 }
 
 connectionButton.addEventListener('click', () => {
@@ -185,6 +213,7 @@ connectionButton.addEventListener('click', () => {
     provider.destroy()
     ydoc.clientID = random.uint32()
     currentID = ydoc.clientID
+    syncShells()
     oldprovider = provider
     provider = null
     connectionButton.textContent = 'Connect'
@@ -197,6 +226,9 @@ connectionButton.addEventListener('click', () => {
     const enterState = getEnterState()
     codemirrorView.destroy()
     if (enterState.roomName !== currentState.roomName) {
+      subscribedTerminalId = ""
+      shellsContainer.innerHTML = ""
+      localShell = new Set()
       enterRoom(enterState)
     } else {
       enterRoom(enterState, false)
@@ -292,8 +324,9 @@ ipcRenderer.on("terminal.unsubscribe", (event, id) => {
 
 // Set Up UUID after compile, meaning a shell is ready to be used
 ipcRenderer.on("terminal.uuid", (event, uuid) => {
-  // log.info("spawning",uuid)
   runnerShells.set(uuid, currentID)
+  localShell.add(uuid)
+  // log.info("spawning",uuid)
   runShells.set(uuid, new yjs.Array())
 })
 
