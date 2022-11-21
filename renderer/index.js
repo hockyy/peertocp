@@ -300,6 +300,7 @@ ipcRenderer.on("terminal.unsubscribe", (event, id) => {
 // Set Up UUID after compile, meaning a shell is ready to be used
 ipcRenderer.on("terminal.uuid", (event, uuid) => {
   runnerShells.set(uuid, currentID)
+  localShell.add(uuid)
   // log.info("spawning",uuid)
   runShells.set(uuid, new yjs.Array())
 })
