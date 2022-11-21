@@ -10,7 +10,7 @@ You can code in C++, and compile it in your local by pressing the <strong style=
 
 Next, there will be some active shells showing at the bottom of the side bar. You can interact with it in real time interactively event if you are not the host of the program.
 
-![image-20221122002259074](README.assets/image-20221122002259074.png)
+<img src="README.assets/image-20221122002259074.png" alt="image-20221122002259074" style="zoom:33%;" />
 
 You can also run it in local and disconnect, while keeping the program running. This will auto update and still be running and can be interact with again after you reconnected.
 
