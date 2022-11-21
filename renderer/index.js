@@ -142,10 +142,13 @@ const enterRoom = ({roomName, username}, newDoc = true) => {
     filterBcConns: false
   })
   currentID = ydoc.clientID;
-  for (const locShell of runnerShells.keys()) {
-    if(localShell.has(locShell)) {
-      runnerShells.set(locShell, currentID)
+  try {
+    for (const locShell of runnerShells.keys()) {
+      if(localShell.has(locShell)) {
+        runnerShells.set(locShell, currentID)
+      }
     }
+  } catch (e) {
   }
   provider.awareness.setLocalStateField('user', {
     name: username, color: userColor.color, colorLight: userColor.light
@@ -184,6 +187,7 @@ const enterRoom = ({roomName, username}, newDoc = true) => {
   })
 
   runShells.observeDeep(updateShells)
+  runnerShells.observeDeep(updateShells)
 }
 
 connectionButton.addEventListener('click', () => {
