@@ -60,7 +60,7 @@ To set up a server, clone the repository
 
 Make sure the server machine already got node installed, the working version that is used across all servers and clients are Node.js 16. You can set up nvm to set up and test other versions of Node.js. Run the server by using `npm start` in each server repository. To set up the server, make sure you allow client to talk with PORT 3000 of the machine.
 
-If you are using nginx, you can refer to this following configurations (need adjustment if doesn't work):
+If you are using NGINX, you can refer to this following configurations (need adjustment if doesn't work):
 
 ```nginx
 location / {
@@ -76,3 +76,33 @@ location / {
 	proxy_set_header X-Real-IP $remote_addr;
 }
 ```
+
+## End-To-End Benchmarking Guide
+
+Uncomment the checker function at the below of the code
+
+```js
+// checker()
+```
+
+Set up the constants
+
+```js
+const testPlugins = null;
+const currentTestScenario = null;
+```
+
+depending on which test you are currently running. For example if there exist a test plugin for scenario X, then put it in, to the variable, else just let it be `null`. For example when testing scenario 3:
+
+```js
+const testPlugins = scenarioThreePlugins;
+const currentTestScenario = 3;
+```
+
+Pay attention that testPlugins is not calling the function because it is a function generator which later will be called when generating the CodeMirror's EditorState.
+
+```js
+const msLeft = Date.parse("2022-11-09T22:56:00.000+07:00") - Date.now()
+```
+
+Change this constant in the `checker` function to the time exactly you will want to start the test. Past time will start it immediately but weird behavior can happen if you put past from the current time.
