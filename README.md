@@ -30,7 +30,7 @@ There are 3 versions of this app:
   - CRDT y-map for shell sharing
 
 - Operational Transformation Client-Server [Branch](https://github.com/hockyy/peertocp/tree/ot-cs)
-  - Uses [own WebSocket server](https://github.com/hockyy/peertocp-server)
+  - Uses [own WebSocket server](https://github.com/hockyy/peertocp-ot-server)
      - Utilizes [RPC-websockets](https://www.npmjs.com/package/rpc-websockets) for network provider
        - It creates an abstraction for RPC calling over a websocket connection
   - [@codemirror/collab OT](https://github.com/codemirror/collab), based on [Codemirror Collab Website Example](https://github.com/codemirror/website/tree/master/site/examples/collab) for code editor
@@ -74,7 +74,7 @@ To set up a server, clone the repository
 
 - [modified y-webrtc](https://github.com/hockyy/y-webrtc) for `crdt-p2p`
 - [modified y-websocket](https://github.com/hockyy/y-websocket) for `crdt-cs`
-- [own WebSocket server](https://github.com/hockyy/peertocp-server) for `ot-cs`
+- [own WebSocket server](https://github.com/hockyy/peertocp-ot-server) for `ot-cs`
 
 Make sure the server machine already got node installed, the working version that is used across all servers and clients are Node.js 16. You can set up nvm to set up and test other versions of Node.js. Run the server by using `npm start` in each server repository. To set up the server, make sure you allow client to talk with PORT 3000 of the machine.
 
