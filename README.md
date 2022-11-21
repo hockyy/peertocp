@@ -124,3 +124,5 @@ const msLeft = Date.parse("2022-11-09T22:56:00.000+07:00") - Date.now()
 ```
 
 Change this constant in the `checker` function to the time exactly you will want to start the test. Past time will start it immediately but weird behavior can happen if you put past from the current time.
+
+Benchmarking result is available in this [repository](https://github.com/hockyy/peertocp-benchmark).
