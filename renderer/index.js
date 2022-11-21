@@ -144,6 +144,18 @@ const updateShells = ([e]) => {
   }
 }
 
+const syncShells = () => {
+  try {
+    for (const locShell of runnerShells.keys()) {
+      if (localShell.has(locShell)) {
+        runnerShells.set(locShell, currentID)
+      }
+    }
+  } catch (e) {
+  }
+  updateRunner()
+}
+
 const enterRoom = ({roomName, username}, newDoc = true) => {
   currentState = {roomName: roomName, username: username}
   roomStatus.textContent = roomName
@@ -191,16 +203,9 @@ const enterRoom = ({roomName, username}, newDoc = true) => {
     parent: /** @type {HTMLElement} */ (document.querySelector('#editor'))
   })
 
-  try {
-    for (const locShell of runnerShells.keys()) {
-      if (localShell.has(locShell)) {
-        runnerShells.set(locShell, currentID)
-      }
-    }
-  } catch (e) {
-  }
+  if (!newDoc) syncShells()
   runShells.observeDeep(updateShells)
-  runnerShells.observeDeep(updateRunner)
+  // updateShells()
 }
 
 connectionButton.addEventListener('click', () => {
@@ -209,6 +214,7 @@ connectionButton.addEventListener('click', () => {
     provider.destroy()
     ydoc.clientID = random.uint32()
     currentID = ydoc.clientID
+    syncShells()
     oldprovider = provider
     provider = null
     connectionButton.textContent = 'Connect'
@@ -221,7 +227,9 @@ connectionButton.addEventListener('click', () => {
     const enterState = getEnterState()
     codemirrorView.destroy()
     if (enterState.roomName !== currentState.roomName) {
-      console.log("here")
+      subscribedTerminalId = ""
+      shellsContainer.innerHTML = ""
+      localShell = new Set()
       enterRoom(enterState)
     } else {
       enterRoom(enterState, false)
