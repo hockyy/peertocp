@@ -613,8 +613,8 @@ const scenarioFour = () => {
   }, testDuration)
 }
 
-const testPlugins = scenarioThreePlugins;
-const currentTestScenario = 3;
+const testPlugins = null;
+const currentTestScenario = null;
 const logID = uuidv4()
 
 const checker = () => {
