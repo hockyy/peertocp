@@ -36,6 +36,8 @@ There are 3 versions of this app:
   - [@codemirror/collab OT](https://github.com/codemirror/collab), based on [Codemirror Collab Website Example](https://github.com/codemirror/website/tree/master/site/examples/collab) for code editor
   - Synchronized array for shell sharing
 
+`y-websocket` and `y-webrtc` being used is from a costumized repo, consider running `npm run gitdeps` to refresh if a provider error occurs.
+
 ## Client Guide
 
 Make sure the server is running, all the constant values and servers are defined on the top of the application.
