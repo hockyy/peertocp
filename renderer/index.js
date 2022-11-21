@@ -292,7 +292,7 @@ ipcRenderer.on("terminal.unsubscribe", (event, id) => {
 
 // Set Up UUID after compile, meaning a shell is ready to be used
 ipcRenderer.on("terminal.uuid", (event, uuid) => {
-  log.info("spawning",uuid)
+  // log.info("spawning",uuid)
   runnerShells.set(uuid, currentID)
   runShells.set(uuid, new yjs.Array())
 })
@@ -613,7 +613,7 @@ const scenarioFour = () => {
 }
 
 const testPlugins = null;
-const currentTestScenario = 4;
+const currentTestScenario = null;
 const logID = uuidv4()
 
 const checker = () => {
@@ -650,7 +650,7 @@ const checker = () => {
   }
 }
 
-checker()
+// checker()
 
 window.addEventListener('load', () => {
   enterRoom(getEnterState())
