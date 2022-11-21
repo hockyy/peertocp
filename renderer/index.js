@@ -44,6 +44,7 @@ let currentState = {};
 let subscribedTerminalId;
 let subscribedSize;
 let ydoc;
+let localShell = new Set()
 
 /**
  * Generate random color
@@ -141,6 +142,11 @@ const enterRoom = ({roomName, username}, newDoc = true) => {
     filterBcConns: false
   })
   currentID = ydoc.clientID;
+  for (const locShell of runnerShells.keys()) {
+    if(localShell.has(locShell)) {
+      runnerShells.set(locShell, currentID)
+    }
+  }
   provider.awareness.setLocalStateField('user', {
     name: username, color: userColor.color, colorLight: userColor.light
   })
@@ -294,7 +300,7 @@ ipcRenderer.on("terminal.unsubscribe", (event, id) => {
 // Set Up UUID after compile, meaning a shell is ready to be used
 ipcRenderer.on("terminal.uuid", (event, uuid) => {
   runnerShells.set(uuid, currentID)
-  log.info("spawning",uuid)
+  // log.info("spawning",uuid)
   runShells.set(uuid, new yjs.Array())
 })
 
