@@ -58,7 +58,7 @@ class Connection {
       const start = performance.now();
       this.ping().then(res => {
         const dur = performance.now() - start
-        log.info(`Ping,${Date.now().toString()},${dur}`)
+        // log.info(`Ping,${Date.now().toString()},${dur}`)
         if (res) {
           pingStatus.innerHTML = dur.toFixed(2);
         } else {
@@ -380,7 +380,7 @@ function peerExtension(startVersion = 0, connection) {
           for (const shellUpdate of updates.shellUpdates) {
             switch (shellUpdate.type) {
               case "spawn":
-                log.info(`spawn,${shellUpdate.uuid},${shellUpdate.spawner}`)
+                // log.info(`spawn,${shellUpdate.uuid},${shellUpdate.spawner}`)
                 runnerShells.set(shellUpdate.uuid, {
                   spawner: shellUpdate.spawner, updated: true
                 })
@@ -576,10 +576,6 @@ const updatePeersButton = (peers) => {
     })
   }
 }
-
-window.addEventListener('load', () => {
-  enterRoom(getEnterState())
-})
 
 connectionButton.addEventListener('click', () => {
   if (connection.wsconn.socket) {
@@ -1061,3 +1057,7 @@ const checker = () => {
 }
 
 // checker()
+
+window.addEventListener('load', () => {
+  enterRoom(getEnterState())
+})
