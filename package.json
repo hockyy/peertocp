@@ -44,7 +44,6 @@
     "y-codemirror.next": "^0.3.2",
     "y-protocols": "^1.0.5",
     "y-webrtc": "github:hockyy/y-webrtc",
-    "y-websocket": "^1.4.5",
     "yjs": "^13.5.42"
   },
   "config": {
